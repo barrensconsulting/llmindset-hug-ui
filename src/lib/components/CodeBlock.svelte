@@ -32,15 +32,27 @@
 		};
 	});
 
+	async function parseAndRender(code: string, id: string): Promise<RenderResult | null> {
+		try {
+			const parseResult = await mermaid.parse(code, { suppressErrors: true });
+			if (parseResult === false) {
+				return null;
+			}
+			const result = await mermaid.render(id, code);
+			return result;
+		} catch (error: unknown) {
+			if (error instanceof Error) {
+				mermaidError = `Error in diagram: ${error.message}`;
+			} else {
+				mermaidError = "An unknown error occurred while processing the diagram";
+			}
+			return null;
+		}
+	}
+
 	$: if (lang === "mermaid" && !loading && code) {
 		mermaidError = null;
-		renderPromise = mermaid.render(mermaidId, code).catch((error) => {
-			mermaidError = `Error rendering diagram: ${error.message}`;
-			return null;
-		});
-	} else {
-		renderPromise = null;
-		mermaidError = null;
+		renderPromise = parseAndRender(code, mermaidId);
 	}
 
 	afterUpdate(async () => {
@@ -66,10 +78,10 @@
 	{:else}
 		<pre
 			class="scrollbar-custom overflow-auto px-5 scrollbar-thumb-gray-500 hover:scrollbar-thumb-gray-400 dark:scrollbar-thumb-white/10 dark:hover:scrollbar-thumb-white/20">
-<code class="language-{lang}"
-				>{@html DOMPurify.sanitize(highlightedCode) || code.replaceAll("<", "&lt;")}</code
+		<code class="language-{lang}"
+				>{@html DOMPurify.sanitize(highlightedCode) || code.replaceAll("<", "<")}</code
 			>
-        </pre>
+	  </pre>
 	{/if}
 	<CopyToClipBoardBtn
 		classNames="btn rounded-lg border border-gray-200 px-2 py-2 text-sm shadow-sm transition-all hover:border-gray-300 active:shadow-inner dark:border-gray-700 dark:hover:border-gray-500 absolute top-2 right-2 invisible opacity-0 group-hover:visible group-hover:opacity-100 dark:text-gray-700 text-gray-200"
