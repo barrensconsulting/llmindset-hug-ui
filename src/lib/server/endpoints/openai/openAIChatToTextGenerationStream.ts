@@ -15,7 +15,6 @@ export async function* openAIChatToTextGenerationStream(
 	for await (const completion of completionStream) {
 		const { choices } = completion;
 		const content = choices[0]?.delta?.content ?? "";
-		console.log("**");
 		if (content) {
 			generatedText += content;
 			// Yield intermediate updates without generated_text
