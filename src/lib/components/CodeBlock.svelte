@@ -16,6 +16,7 @@
 	let mermaidId = `mermaid-${Math.random().toString(36).slice(2, 9)}`;
 	let mermaidError: string | null = null;
 	let renderPromise: Promise<RenderResult | null> | null = null;
+	let hasRendered = false;
 
 	onMount(() => {
 		mermaid.initialize({
@@ -39,6 +40,7 @@
 				return null;
 			}
 			const result = await mermaid.render(id, code);
+			hasRendered = true;
 			return result;
 		} catch (error: unknown) {
 			if (error instanceof Error) {
@@ -52,6 +54,7 @@
 
 	$: if (lang === "mermaid" && !loading && code) {
 		mermaidError = null;
+		hasRendered=false;
 		renderPromise = parseAndRender(code, mermaidId);
 	}
 
@@ -62,7 +65,7 @@
 </script>
 
 <div class="group relative my-4 rounded-lg">
-	{#if lang === "mermaid" && !loading}
+	{#if lang === "mermaid" && hasRendered}
 		{#await renderPromise}
 			<pre>{code}</pre>
 		{:then result}
