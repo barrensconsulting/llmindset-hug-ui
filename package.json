@@ -86,7 +86,7 @@
 		"json5": "^2.2.3",
 		"jsonwebtoken": "^9.0.2",
 		"lint-staged": "^15.2.7",
-		"marked": "^12.0.2",
+		"marked": "^14.0.0",
 		"marked-katex-extension": "^5.0.2",
 		"mermaid": "^10.9.1",
 		"mongodb": "^5.8.0",

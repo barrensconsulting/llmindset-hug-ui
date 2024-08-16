@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { marked, type MarkedOptions } from "marked";
+	import { marked, type MarkedOptions, type Token } from "marked";
 	import markedKatex from "marked-katex-extension";
 	import type { Message, MessageFile } from "$lib/types/Message";
 	import { afterUpdate, createEventDispatcher, tick } from "svelte";
@@ -88,14 +88,17 @@
 	// For code blocks with simple backticks
 	renderer.codespan = (code) => {
 		// Unsanitize double-sanitized code
-		return `<code>${code.replaceAll("&amp;", "&")}</code>`;
+		return `<code>${code.text.replaceAll("&amp;", "&")}</code>`;
 	};
 
-	renderer.link = (href, title, text) => {
-		return `<a href="${href?.replace(/>$/, "")}" target="_blank" rel="noreferrer">${text}</a>`;
-	};
+	renderer.code = (code) => {		
+		return `<pre><code>${sanitizeMd(code.raw)}</code></pre>`;
+	}
+ 
+	renderer.link = (link) =>  {
+		return `<a href="${link.href?.replace(/>$/, "")}" target="_blank" rel="noreferrer">${link.text}</a>`;
+	}
 
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	const { extensions, ...defaults } = marked.getDefaults() as MarkedOptions & {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		extensions: any;
@@ -306,9 +309,9 @@
 					{#if token.type === "code"}
 						<CodeBlock lang={token.lang} code={unsanitizeMd(token.text)} {loading} />
 					{:else}
-						{#await marked.parse(token.raw, options) then parsed}
+					{#await marked.parse(token.raw, options) then parsed}
 							{@html DOMPurify.sanitize(parsed)}
-						{/await}
+					{/await}
 					{/if}
 				{/each}
 			</div>
