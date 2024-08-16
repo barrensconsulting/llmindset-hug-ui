@@ -91,13 +91,15 @@
 		return `<code>${code.text.replaceAll("&amp;", "&")}</code>`;
 	};
 
-	renderer.code = (code) => {		
+	renderer.code = (code) => {
 		return `<pre><code>${sanitizeMd(code.raw)}</code></pre>`;
-	}
- 
-	renderer.link = (link) =>  {
-		return `<a href="${link.href?.replace(/>$/, "")}" target="_blank" rel="noreferrer">${link.text}</a>`;
-	}
+	};
+
+	renderer.link = (link) => {
+		return `<a href="${link.href?.replace(/>$/, "")}" target="_blank" rel="noreferrer">${
+			link.text
+		}</a>`;
+	};
 
 	const { extensions, ...defaults } = marked.getDefaults() as MarkedOptions & {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -309,9 +311,9 @@
 					{#if token.type === "code"}
 						<CodeBlock lang={token.lang} code={unsanitizeMd(token.text)} {loading} />
 					{:else}
-					{#await marked.parse(token.raw, options) then parsed}
+						{#await marked.parse(token.raw, options) then parsed}
 							{@html DOMPurify.sanitize(parsed)}
-					{/await}
+						{/await}
 					{/if}
 				{/each}
 			</div>

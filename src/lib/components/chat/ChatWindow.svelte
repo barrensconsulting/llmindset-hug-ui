@@ -175,10 +175,7 @@
 	on:drop|preventDefault={() => (onDrag = false)}
 />
 
-
-
 <div class="relative min-h-0 min-w-0">
-	
 	{#if loginModalOpen}
 		<LoginModal
 			on:close={() => {
