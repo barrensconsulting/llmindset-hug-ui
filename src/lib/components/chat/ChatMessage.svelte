@@ -92,7 +92,7 @@
 	};
 
 	renderer.code = (code) => {
-		return `<pre><code>${sanitizeMd(code.raw)}</code></pre>`;
+		return `<pre><code>${sanitizeMd(code.text)}</code></pre>`;
 	};
 
 	renderer.link = (link) => {
