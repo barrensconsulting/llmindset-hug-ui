@@ -136,15 +136,18 @@ export const load: LayoutServerLoad = async ({ locals, depends, request }) => {
 			// remove invalid unicode and trim whitespaces
 			conv.title = conv.title.replace(/\uFFFD/gu, "").trimStart();
 
+			const assistant = conv.assistantId
+				? assistants.find((a) => a._id.toString() === conv.assistantId?.toString())
+				: null;
+
 			return {
 				id: conv._id.toString(),
 				title: conv.title,
 				model: conv.model ?? defaultModel,
 				updatedAt: conv.updatedAt,
 				assistantId: conv.assistantId?.toString(),
-				avatarHash:
-					conv.assistantId &&
-					assistants.find((a) => a._id.toString() === conv.assistantId?.toString())?.avatar,
+				assistantName: assistant?.name,
+				avatarHash: assistant?.avatar,
 			};
 		}) satisfies ConvSidebar[],
 		settings: {

@@ -10,10 +10,19 @@
 	import type { ConvSidebar } from "$lib/types/ConvSidebar";
 	import type { Model } from "$lib/types/Model";
 	import { page } from "$app/stores";
-
+	import { writable } from "svelte/store";
+	import AssistantFilterButton from "./AssistantFilterButton.svelte";
+	import CarbonFilter from "~icons/carbon/filter";
+	import CarbonSubtractAlt from "~icons/carbon/subtract-alt";
 	export let conversations: ConvSidebar[] = [];
 	export let canLogin: boolean;
 	export let user: LayoutData["user"];
+
+	let showFilters = false;
+
+	function toggleFilters() {
+		showFilters = !showFilters;
+	}
 
 	function handleNewChatClick() {
 		isAborted.set(true);
@@ -24,16 +33,41 @@
 		new Date().setDate(new Date().getDate() - 7),
 		new Date().setMonth(new Date().getMonth() - 1),
 	];
+	const selectedAssistant = writable<string>("");
+
+	$: uniqueAssistants = Array.from(
+		new Set(conversations.map((conv) => conv.assistantId).filter(Boolean))
+	).map((id) => {
+		const conv = conversations.find((c) => c.assistantId === id);
+		return {
+			id,
+			name: conv?.assistantName,
+			avatarHash: conv?.avatarHash,
+		};
+	});
+
+	function handleAssistantFilter(assistantId: string | undefined) {
+		if (assistantId) {
+			selectedAssistant.update((current) => (current === assistantId ? "" : assistantId));
+		}
+	}
+
+	$: filteredConversations =
+		$selectedAssistant === ""
+			? conversations
+			: $selectedAssistant === "no-assistant"
+			? conversations.filter((conv) => !conv.assistantId)
+			: conversations.filter((conv) => conv.assistantId === $selectedAssistant);
 
 	$: groupedConversations = {
-		today: conversations.filter(({ updatedAt }) => updatedAt.getTime() > dateRanges[0]),
-		week: conversations.filter(
+		today: filteredConversations.filter(({ updatedAt }) => updatedAt.getTime() > dateRanges[0]),
+		week: filteredConversations.filter(
 			({ updatedAt }) => updatedAt.getTime() > dateRanges[1] && updatedAt.getTime() < dateRanges[0]
 		),
-		month: conversations.filter(
+		month: filteredConversations.filter(
 			({ updatedAt }) => updatedAt.getTime() > dateRanges[2] && updatedAt.getTime() < dateRanges[1]
 		),
-		older: conversations.filter(({ updatedAt }) => updatedAt.getTime() < dateRanges[2]),
+		older: filteredConversations.filter(({ updatedAt }) => updatedAt.getTime() < dateRanges[2]),
 	};
 
 	const titles: { [key: string]: string } = {
@@ -46,22 +80,61 @@
 	const nModels: number = $page.data.models.filter((el: Model) => !el.unlisted).length;
 </script>
 
-<div class="sticky top-0 flex flex-none items-center justify-between px-3 py-3.5 max-sm:pt-0">
-	<a
-		class="flex items-center rounded-xl text-lg font-semibold"
-		href="{envPublic.PUBLIC_ORIGIN}{base}/"
-	>
-		<Logo classNames="mr-1" />
-		{envPublic.PUBLIC_APP_NAME}
-	</a>
-	<a
-		href={`${base}/`}
-		on:click={handleNewChatClick}
-		class="flex rounded-lg border bg-white px-2 py-0.5 text-center shadow-sm hover:shadow-none dark:border-gray-600 dark:bg-gray-700 sm:text-smd"
-	>
-		New Chat
-	</a>
+<div class="flex h-full flex-col">
+	<!-- Header Section with Filter Buttons -->
+	<div class="sticky top-0 flex-none px-3 py-3.5 max-sm:pt-0">
+		<div class="mb-2 flex items-center justify-between">
+			<a
+				class="flex items-center rounded-xl text-lg font-semibold"
+				href="{envPublic.PUBLIC_ORIGIN}{base}/"
+			>
+				<Logo classNames="mr-1" />
+				{envPublic.PUBLIC_APP_NAME}
+			</a>
+			<div class="flex gap-2">
+				<button
+					on:click={toggleFilters}
+					class="flex items-center rounded-lg border bg-white px-2 py-0.5 text-center shadow-sm hover:shadow-none dark:border-gray-600 dark:bg-gray-700 sm:text-smd"
+					><CarbonFilter class=" h-4 w-4" /></button
+				>
+				<a
+					href={`${base}/`}
+					on:click={handleNewChatClick}
+					class="flex rounded-lg border bg-white px-2 py-0.5 text-center shadow-sm hover:shadow-none dark:border-gray-600 dark:bg-gray-700 sm:text-smd"
+				>
+					New Chat
+				</a>
+			</div>
+		</div>
+
+		<!-- Filter Buttons -->
+		{#if showFilters}
+			<div
+				class="mt-2 flex max-h-20 flex-wrap items-center gap-2 overflow-y-auto rounded-xl bg-gray-50 p-2 dark:bg-gray-800/30"
+			>
+				{#each uniqueAssistants as assistant}
+					<AssistantFilterButton
+						assistantId={assistant.id}
+						avatarHash={assistant.avatarHash}
+						assistantName={assistant.name}
+						isActive={$selectedAssistant === assistant.id}
+						onClick={() => handleAssistantFilter(assistant.id)}
+					/>
+				{/each}
+				<AssistantFilterButton
+					assistantId={"no-assistant"}
+					avatarHash={""}
+					assistantName="No Assistant"
+					isActive={$selectedAssistant === "no-assistant"}
+					onClick={() => handleAssistantFilter("no-assistant")}
+				>
+					<CarbonSubtractAlt class="h-5 w-5" />
+				</AssistantFilterButton>
+			</div>
+		{/if}
+	</div>
 </div>
+
 <div
 	class="scrollbar-custom flex flex-col gap-1 overflow-y-auto rounded-r-xl from-gray-50 px-3 pb-3 pt-2 text-[.9rem] dark:from-gray-800/30 max-sm:bg-gradient-to-t md:bg-gradient-to-l"
 >
