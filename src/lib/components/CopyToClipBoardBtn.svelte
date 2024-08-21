@@ -34,7 +34,13 @@
 	});
 </script>
 
-<button class={classNames} title={"Copy to clipboard"} type="button" on:click={handleClick}>
+<button
+	class={classNames}
+	title={"Copy to clipboard"}
+	type="button"
+	on:click
+	on:click={handleClick}
+>
 	<div class="relative">
 		<slot>
 			<IconCopy classNames="h-[1.14em] w-[1.14em]" />
