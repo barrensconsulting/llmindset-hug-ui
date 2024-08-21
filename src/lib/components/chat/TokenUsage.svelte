@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { slide } from "svelte/transition";
-	import CarbonInformation from "~icons/carbon/information";
 
 	export let usage: { input_tokens: number; output_tokens: number };
 	export let tokenInfo: {
@@ -45,8 +44,6 @@
 				usage.output_tokens * tokenInfo.pricing.output) /
 		  1_000_000
 		: null;
-
-	$: progressBarColor = percentageUsed > 80 ? "bg-red-500" : "bg-gray-300 dark:bg-gray-600";
 </script>
 
 <div class="mt-4 text-sm">

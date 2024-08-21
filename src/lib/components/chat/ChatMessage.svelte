@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { marked, type MarkedOptions, type Token } from "marked";
+	import { marked, type MarkedOptions } from "marked";
 	import markedKatex from "marked-katex-extension";
 	import type { Message } from "$lib/types/Message";
 	import { afterUpdate, createEventDispatcher, tick } from "svelte";

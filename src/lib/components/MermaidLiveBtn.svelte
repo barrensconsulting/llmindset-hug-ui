@@ -1,7 +1,6 @@
 <!-- MermaidLiveBtn.svelte -->
 <script lang="ts">
 	import { deflate } from "pako";
-	import CarbonLaunch from "~icons/carbon/launch";
 	import IconInternet from "./icons/IconInternet.svelte";
 	export let classNames = "";
 	export let value: string;
