@@ -219,6 +219,7 @@
 {#if message.from === "assistant"}
 	<div
 		class="group relative -mb-4 flex items-start justify-start gap-4 pb-4 leading-relaxed"
+		id="message-assistant-{message.id}"
 		role="presentation"
 		on:click={() => (isTapped = !isTapped)}
 		on:keydown={() => (isTapped = !isTapped)}
@@ -368,6 +369,7 @@
 {#if message.from === "user"}
 	<div
 		class="group relative w-full items-start justify-start gap-4 max-sm:text-sm"
+		id="message-user-{message.id}"
 		role="presentation"
 		on:click={() => (isTapped = !isTapped)}
 		on:keydown={() => (isTapped = !isTapped)}
