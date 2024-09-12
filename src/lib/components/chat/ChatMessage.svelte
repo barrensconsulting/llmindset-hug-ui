@@ -2,6 +2,8 @@
 	import { marked, type MarkedOptions } from "marked";
 	import markedKatex from "marked-katex-extension";
 	import type { Message } from "$lib/types/Message";
+	import { v4 } from "uuid";
+
 	import { afterUpdate, createEventDispatcher, tick } from "svelte";
 	import { deepestChild } from "$lib/utils/deepestChild";
 	import { page } from "$app/stores";
@@ -20,7 +22,6 @@
 	import { PUBLIC_SEP_TOKEN } from "$lib/constants/publicSepToken";
 	import type { Model } from "$lib/types/Model";
 	import UploadedFile from "./UploadedFile.svelte";
-
 	import OpenWebSearchResults from "../OpenWebSearchResults.svelte";
 	import {
 		MessageWebSearchUpdateType,
@@ -36,6 +37,8 @@
 	import { enhance } from "$app/forms";
 	import { browser } from "$app/environment";
 	import TokenUsage from "./TokenUsage.svelte";
+	import CarbonTreeView from "~icons/carbon/tree-view";
+	import { onMount } from "svelte";
 
 	function sanitizeMd(md: string) {
 		let ret = md
@@ -84,6 +87,11 @@
 	let isCopied = false;
 
 	let initialized = false;
+
+	let showTree = false;
+	let hasBranches = false;
+	let mermaidChart: string;
+
 	const renderer = new marked.Renderer();
 	// For code blocks with simple backticks
 	renderer.codespan = (code) => {
@@ -231,6 +239,78 @@
 		}
 	}
 	$: if (message.children?.length === 0) $convTreeStore.leaf = message.id;
+
+	function generateMermaidChart(messages: Message[], selectedId: string): string {
+		const pathToSelected: Set<string> = new Set(
+			messages.find((m) => m.id === selectedId)?.ancestors
+		);
+		pathToSelected.add(selectedId);
+
+		let output = "graph TD\n";
+
+		function getIcon(message: Message): string {
+			if (message.from === "system") return "🖥️";
+			if (message.from === "user") return "😊";
+			return "🤖";
+		}
+
+		let nodeClasses = "";
+		const nodeSet: Set<string> = new Set();
+
+		messages.forEach((message) => {
+			const isSystem = message.from === "system";
+			const isTerminal = !message.children || message.children.length === 0;
+			const isBranch = message.children && message.children.length > 1;
+			const isSelected = message.id === selectedId;
+
+			if (!nodeSet.has(message.id) && (isSystem || isTerminal || isSelected || isBranch)) {
+				nodeSet.add(message.id);
+				output += `    ${message.id}((${getIcon(message)}))\n`;
+				output += `    click ${message.id} callback "tooltip"\n`;
+
+				if (pathToSelected.has(message.id) && !isSystem) {
+					nodeClasses += `class ${message.id} selected\n`;
+				} else if (isTerminal) {
+					nodeClasses += `class ${message.id} terminal\n`;
+				}
+
+				const ancestors = (message.ancestors ?? []).slice().reverse();
+
+				let turns = 0;
+				for (let index = 0; index < ancestors.length; index++) {
+					const ancestorId = ancestors[index];
+					const ancestor = messages.find((m) => m.id === ancestorId) ?? ({} as Message);
+					if (ancestor.from === "user") turns++;
+					if (nodeSet.has(ancestorId)) {
+						const turnMessage = turns > 1 ? "|" + turns + " turns|" : "";
+						output += `    ${ancestorId} --> ${turnMessage} ${message.id}\n`;
+						break;
+					}
+				}
+			}
+		});
+
+		// Add class definitions
+		output += "\n";
+		output += "classDef selected stroke:#f00,stroke-width:3px\n";
+		output += "classDef terminal stroke-width:2px\n";
+
+		output += nodeClasses;
+
+		return output;
+	}
+
+	function toggleTree() {
+		showTree = !showTree;
+	}
+
+	$: if (showTree) {
+		mermaidChart = generateMermaidChart(messages, id);
+	}
+
+	onMount(() => {
+		hasBranches = true;
+	});
 </script>
 
 {#if message.from === "assistant"}
@@ -308,6 +388,15 @@
 					}}
 				/>
 			{/if}
+			{#if hasBranches}
+				<button
+					class="ml-2 p-1 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+					on:click={toggleTree}
+					title="Show conversation tree"
+				>
+					<CarbonTreeView />
+				</button>
+			{/if}
 
 			<!-- Web Search sources -->
 			{#if webSearchSources?.length}
@@ -327,6 +416,12 @@
 							<div>{new URL(link).hostname.replace(/^www\./, "")}</div>
 						</a>
 					{/each}
+				</div>
+			{/if}
+
+			{#if showTree}
+				<div class="mt-4 border-t pt-4 dark:border-gray-700">
+					<CodeBlock lang="mermaid" code={mermaidChart} />
 				</div>
 			{/if}
 		</div>
