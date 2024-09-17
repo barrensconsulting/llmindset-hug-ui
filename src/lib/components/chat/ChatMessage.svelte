@@ -4,6 +4,8 @@
 	import type { Message } from "$lib/types/Message";
 	import { v4 } from "uuid";
 
+	import { v4 } from "uuid";
+
 	import { afterUpdate, createEventDispatcher, tick } from "svelte";
 	import { deepestChild } from "$lib/utils/deepestChild";
 	import { page } from "$app/stores";
@@ -40,6 +42,9 @@
 	import CarbonTreeView from "~icons/carbon/tree-view";
 	import { onMount } from "svelte";
 	import MermaidBranchViewer from "../MermaidBranchViewer.svelte";
+	import CarbonTreeView from "~icons/carbon/tree-view";
+	import { onMount } from "svelte";
+
 	function sanitizeMd(md: string) {
 		let ret = md
 			.replace(/<\|[a-z]*$/, "")
@@ -279,6 +284,78 @@
 				output += `    ${message.id}((${getIcon(message)}))\n`;
 				const safeTooltip = escapeTooltip(message.content || "");
 				output += `    click ${message.id} callback "${safeTooltip}"\n`;
+
+				if (pathToSelected.has(message.id) && !isSystem) {
+					nodeClasses += `class ${message.id} selected\n`;
+				} else if (isTerminal) {
+					nodeClasses += `class ${message.id} terminal\n`;
+				}
+
+				const ancestors = (message.ancestors ?? []).slice().reverse();
+
+				let turns = 0;
+				for (let index = 0; index < ancestors.length; index++) {
+					const ancestorId = ancestors[index];
+					const ancestor = messages.find((m) => m.id === ancestorId) ?? ({} as Message);
+					if (ancestor.from === "user") turns++;
+					if (nodeSet.has(ancestorId)) {
+						const turnMessage = turns > 1 ? "|" + turns + " turns|" : "";
+						output += `    ${ancestorId} --> ${turnMessage} ${message.id}\n`;
+						break;
+					}
+				}
+			}
+		});
+
+		// Add class definitions
+		output += "\n";
+		output += "classDef selected stroke:#f00,stroke-width:3px\n";
+		output += "classDef terminal stroke-width:2px\n";
+
+		output += nodeClasses;
+
+		return output;
+	}
+
+	function toggleTree() {
+		showTree = !showTree;
+	}
+
+	$: if (showTree) {
+		mermaidChart = generateMermaidChart(messages, id);
+	}
+
+	onMount(() => {
+		hasBranches = true;
+	});
+
+	function generateMermaidChart(messages: Message[], selectedId: string): string {
+		const pathToSelected: Set<string> = new Set(
+			messages.find((m) => m.id === selectedId)?.ancestors
+		);
+		pathToSelected.add(selectedId);
+
+		let output = "graph TD\n";
+
+		function getIcon(message: Message): string {
+			if (message.from === "system") return "🖥️";
+			if (message.from === "user") return "😊";
+			return "🤖";
+		}
+
+		let nodeClasses = "";
+		const nodeSet: Set<string> = new Set();
+
+		messages.forEach((message) => {
+			const isSystem = message.from === "system";
+			const isTerminal = !message.children || message.children.length === 0;
+			const isBranch = message.children && message.children.length > 1;
+			const isSelected = message.id === selectedId;
+
+			if (!nodeSet.has(message.id) && (isSystem || isTerminal || isSelected || isBranch)) {
+				nodeSet.add(message.id);
+				output += `    ${message.id}((${getIcon(message)}))\n`;
+				output += `    click ${message.id} callback "tooltip"\n`;
 
 				if (pathToSelected.has(message.id) && !isSystem) {
 					nodeClasses += `class ${message.id} selected\n`;
