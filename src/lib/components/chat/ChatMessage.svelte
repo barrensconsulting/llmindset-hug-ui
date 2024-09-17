@@ -39,7 +39,7 @@
 	import TokenUsage from "./TokenUsage.svelte";
 	import CarbonTreeView from "~icons/carbon/tree-view";
 	import { onMount } from "svelte";
-
+	import MermaidBranchViewer from "../MermaidBranchViewer.svelte";
 	function sanitizeMd(md: string) {
 		let ret = md
 			.replace(/<\|[a-z]*$/, "")
@@ -240,6 +240,17 @@
 	}
 	$: if (message.children?.length === 0) $convTreeStore.leaf = message.id;
 
+	function escapeTooltip(content: string): string {
+		// Sanitize the content using the existing sanitizeMd function
+		let sanitized = sanitizeMd(content);
+
+		// Truncate to 30 characters and add ellipsis if needed
+		let truncated = sanitized.length > 30 ? sanitized.slice(0, 30) + "..." : sanitized;
+
+		// Further escape quotes and replace newlines with spaces for Mermaid compatibility
+		return truncated.replace(/"/g, "&quot;").replace(/\n/g, " ");
+	}
+
 	function generateMermaidChart(messages: Message[], selectedId: string): string {
 		const pathToSelected: Set<string> = new Set(
 			messages.find((m) => m.id === selectedId)?.ancestors
@@ -266,7 +277,8 @@
 			if (!nodeSet.has(message.id) && (isSystem || isTerminal || isSelected || isBranch)) {
 				nodeSet.add(message.id);
 				output += `    ${message.id}((${getIcon(message)}))\n`;
-				output += `    click ${message.id} callback "tooltip"\n`;
+				const safeTooltip = escapeTooltip(message.content || "");
+				output += `    click ${message.id} callback "${safeTooltip}"\n`;
 
 				if (pathToSelected.has(message.id) && !isSystem) {
 					nodeClasses += `class ${message.id} selected\n`;
@@ -421,7 +433,7 @@
 
 			{#if showTree}
 				<div class="mt-4 border-t pt-4 dark:border-gray-700">
-					<CodeBlock lang="mermaid" code={mermaidChart} />
+					<MermaidBranchViewer chartDefinition={mermaidChart} messageId={id} />
 				</div>
 			{/if}
 		</div>
