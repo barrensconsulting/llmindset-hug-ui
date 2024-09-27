@@ -65,12 +65,6 @@
 			<div
 				class="prose w-1/3 min-w-[300px] max-w-none text-sm dark:prose-invert max-sm:prose-sm prose-headings:font-semibold prose-h1:text-lg prose-h2:text-base prose-h3:text-base prose-pre:bg-gray-800 dark:prose-pre:bg-gray-900"
 			>
-				<!--               <div class=" bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 overflow-hidden">
-                    <div 
-                      class="h-2.5 rounded-full {progressBarColor} transition-all duration-200 ease-in-out" 
-                      style="width: {percentageUsed}%"
-                    </div> 
-                  </div>   -->
 				<table>
 					<thead>
 						<tr>
