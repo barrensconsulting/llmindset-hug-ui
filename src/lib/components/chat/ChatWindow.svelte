@@ -36,6 +36,7 @@
 	import UploadedFile from "./UploadedFile.svelte";
 	import { useSettingsStore } from "$lib/stores/settings";
 	import type { ToolFront } from "$lib/types/Tool";
+	import ModelSwitch from "./ModelSwitch.svelte";
 
 	export let messages: Message[] = [];
 	export let loading = false;
@@ -235,7 +236,7 @@
 	{/if}
 
 	<div
-		class="scrollbar-custom mr-1 h-full overflow-y-auto"
+		class="scrollbar-custom h-full overflow-y-auto"
 		use:snapScrollToBottom={messages.length ? [...messages] : false}
 		bind:this={chatContainer}
 	>
@@ -281,6 +282,9 @@
 						on:vote
 						on:continue
 					/>
+					{#if isReadOnly}
+						<ModelSwitch {models} {currentModel} />
+					{/if}
 				</div>
 			{:else if pending}
 				<ChatMessage
@@ -411,9 +415,7 @@
 							<ChatInput value="Sorry, something went wrong. Please try again." disabled={true} />
 						{:else}
 							<ChatInput
-								placeholder={isReadOnly
-									? "This conversation is read-only. Start a new one to continue!"
-									: "Ask anything"}
+								placeholder={isReadOnly ? "This conversation is read-only." : "Ask anything"}
 								bind:value={message}
 								on:submit={handleSubmit}
 								on:beforeinput={(ev) => {

@@ -26,6 +26,7 @@ export async function* generate(
 		continueMessage: isContinue,
 		generateSettings: assistant?.generateSettings,
 		toolResults,
+		isMultimodal: model.multimodal,
 	})) {
 		// text generation completed
 		if (output.generated_text) {
