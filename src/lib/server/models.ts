@@ -72,6 +72,7 @@ const modelConfig = z.object({
 				.object({
 					input: z.number().nonnegative(),
 					output: z.number().nonnegative(),
+					cached: z.number().nonnegative().optional(),
 				})
 				.optional(),
 		})
