@@ -14,6 +14,13 @@ load_balancing_strategy: random
 
 # Chat UI
 
+This is a fork of ChatUI that adds the following features:
+
+- Mermaid Diagrams
+- Chat Cost Calculation (including OpenAI Cached Tokens)
+- Cloudflare Tunnel Authentication
+- Conversation Filtering by Assistant
+
 **Find the docs at [hf.co/docs/chat-ui](https://huggingface.co/docs/chat-ui/index).**
 
 ![Chat UI repository thumbnail](https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/chatui-websearch.png)
