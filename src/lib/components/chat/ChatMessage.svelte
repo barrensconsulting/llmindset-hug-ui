@@ -38,7 +38,6 @@
 	import TokenUsage from "./TokenUsage.svelte";
 	import MermaidBranchViewer from "../BranchViewer.svelte";
 	import CarbonTreeView from "~icons/carbon/tree-view";
-	import { onMount } from "svelte";
 
 	function sanitizeMd(md: string) {
 		let ret = md
