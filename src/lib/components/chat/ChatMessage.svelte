@@ -37,6 +37,29 @@
 	import DOMPurify from "isomorphic-dompurify";
 	import { enhance } from "$app/forms";
 	import { browser } from "$app/environment";
+	import type { WebSearchSource } from "$lib/types/WebSearch";
+
+	function addInlineCitations(md: string, webSearchSources: WebSearchSource[] = []): string {
+		const linkStyle =
+			"color: rgb(59, 130, 246); text-decoration: none; hover:text-decoration: underline;";
+
+		return md.replace(/\[(\d+)\]/g, (match: string) => {
+			const indices: number[] = (match.match(/\d+/g) || []).map(Number);
+			const links: string = indices
+				.map((index: number) => {
+					if (index === 0) return " ";
+					const source = webSearchSources[index - 1];
+					if (source) {
+						return `<a href="${source.link}" target="_blank" rel="noreferrer" style="${linkStyle}">${index}</a>`;
+					}
+					return "";
+				})
+				.filter(Boolean)
+				.join(", ");
+
+			return links ? ` <sup>${links}</sup>` : match;
+		});
+	}
 	import TokenUsage from "./TokenUsage.svelte";
 	import MermaidBranchViewer from "../BranchViewer.svelte";
 	import CarbonTreeView from "~icons/carbon/tree-view";
@@ -127,7 +150,7 @@
 		})
 	);
 
-	$: tokens = marked.lexer(sanitizeMd(message.content ?? ""));
+	$: tokens = marked.lexer(addInlineCitations(sanitizeMd(message.content), webSearchSources));
 
 	$: emptyLoad =
 		!message.content && (webSearchIsDone || (searchUpdates && searchUpdates.length === 0));
@@ -378,7 +401,7 @@
 			{#if message.files?.length}
 				<div class="flex h-fit flex-wrap gap-x-5 gap-y-2">
 					{#each message.files as file}
-						<UploadedFile {file} canClose={false} isPreview={false} />
+						<UploadedFile {file} canClose={false} />
 					{/each}
 				</div>
 			{/if}
@@ -448,7 +471,8 @@
 						>
 							<img
 								class="h-3.5 w-3.5 rounded"
-								src="https://www.google.com/s2/favicons?sz=64&domain_url={new URL(link).hostname}"
+								src="https://www.google.com/s2/favicons?sz=64&domain_url={new URL(link).hostname ||
+									'placeholder'}"
 								alt="{title} favicon"
 							/>
 							<div>{new URL(link).hostname.replace(/^www\./, "")}</div>
@@ -470,7 +494,8 @@
 						>
 							<img
 								class="h-3.5 w-3.5 rounded"
-								src="https://www.google.com/s2/favicons?sz=64&domain_url={new URL(uri).hostname}"
+								src="https://www.google.com/s2/favicons?sz=64&domain_url={new URL(uri).hostname ||
+									'placeholder'}"
 								alt="{title} favicon"
 							/>
 							<div>{title}</div>
@@ -554,7 +579,7 @@
 			{#if message.files?.length}
 				<div class="flex w-fit gap-4 px-5">
 					{#each message.files as file}
-						<UploadedFile {file} canClose={false} isPreview={false} />
+						<UploadedFile {file} canClose={false} />
 					{/each}
 				</div>
 			{/if}
