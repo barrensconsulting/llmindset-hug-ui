@@ -125,5 +125,6 @@ export interface MessageFinalAnswerUpdate {
 	type: MessageUpdateType.FinalAnswer;
 	text: string;
 	interrupted: boolean;
+	webSources?: { uri: string; title: string }[];
 	usage?: UsageInfo;
 }
