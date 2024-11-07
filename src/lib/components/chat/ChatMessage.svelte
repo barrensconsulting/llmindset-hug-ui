@@ -244,10 +244,10 @@
 		let sanitized = sanitizeMd(content);
 
 		// Truncate to 30 characters and add ellipsis if needed
-		let truncated = sanitized.length > 30 ? sanitized.slice(0, 30) + "..." : sanitized;
-
+		let truncated = sanitized.length > 80 ? sanitized.slice(0, 80) + "..." : sanitized;
+		if ("" === truncated.trim()) truncated = " ";
 		// Further escape quotes and replace newlines with spaces for Mermaid compatibility
-		return truncated.replace(/"/g, "&quot;").replace(/\n/g, " ");
+		return truncated.replace(/"/g, "'").replace(/\n/g, " ");
 	}
 
 	function generateMermaidChart(messages: Message[], selectedId: string): string {
@@ -265,18 +265,30 @@
 		}
 
 		let nodeClasses = "";
-		const nodeSet: Set<string> = new Set();
+		const nodes: Set<string> = new Set();
 
 		messages.forEach((message) => {
 			const isSystem = message.from === "system";
 			const isTerminal = !message.children || message.children.length === 0;
 			const isBranch = message.children && message.children.length > 1;
 			const isSelected = message.id === selectedId;
+			const ancestors = (message.ancestors ?? []).slice().reverse();
+			const parentId = ancestors[0];
+			const parentMessage = messages.find((m) => m.id === parentId);
+			const isChildOfBranch =
+				parentMessage && parentMessage.children && parentMessage.children.length > 1;
 
-			if (!nodeSet.has(message.id) && (isSystem || isTerminal || isSelected || isBranch)) {
-				nodeSet.add(message.id);
-				output += `    ${message.id}((${getIcon(message)}))\n`;
+			//			const userBranch = false;
+			//		const userBranch = "user" === message.from && nodes.has(ancestors[0]);
+			//			const isUser = "user"===message.from && n
+
+			if (
+				!nodes.has(message.id) &&
+				(isSystem || isTerminal || isSelected || isBranch || isChildOfBranch)
+			) {
+				nodes.add(message.id);
 				const safeTooltip = escapeTooltip(message.content || "");
+				output += `    ${message.id}((${getIcon(message)}))\n`;
 				output += `    click ${message.id} callback "${safeTooltip}"\n`;
 
 				if (pathToSelected.has(message.id) && !isSystem) {
@@ -285,14 +297,12 @@
 					nodeClasses += `class ${message.id} terminal\n`;
 				}
 
-				const ancestors = (message.ancestors ?? []).slice().reverse();
-
 				let turns = 0;
 				for (let index = 0; index < ancestors.length; index++) {
 					const ancestorId = ancestors[index];
 					const ancestor = messages.find((m) => m.id === ancestorId) ?? ({} as Message);
 					if (ancestor.from === "user") turns++;
-					if (nodeSet.has(ancestorId)) {
+					if (nodes.has(ancestorId)) {
 						const turnMessage = turns > 1 ? "|" + turns + " turns|" : "";
 						output += `    ${ancestorId} --> ${turnMessage} ${message.id}\n`;
 						break;
@@ -313,10 +323,6 @@
 
 	function toggleTree() {
 		showTree = !showTree;
-	}
-
-	$: if (showTree) {
-		mermaidChart = generateMermaidChart(messages, id);
 	}
 
 	$: if (showTree) {
@@ -444,12 +450,13 @@
 					{/each}
 				</div>
 			{/if}
-
+			<!--
 			{#if showTree}
 				<div class="mt-4 border-t pt-4 dark:border-gray-700">
 					<MermaidBranchViewer chartDefinition={mermaidChart} messageId={id} />
 				</div>
 			{/if}
+			-->
 		</div>
 		{#if !loading && (message.content || toolUpdates)}
 			<div
