@@ -38,6 +38,8 @@
 	import { enhance } from "$app/forms";
 	import { browser } from "$app/environment";
 	import type { WebSearchSource } from "$lib/types/WebSearch";
+	import TokenUsage from "./TokenUsage.svelte";
+	import CarbonTreeView from "~icons/carbon/tree-view";
 
 	function addInlineCitations(md: string, webSearchSources: WebSearchSource[] = []): string {
 		const linkStyle =
@@ -60,9 +62,6 @@
 			return links ? ` <sup>${links}</sup>` : match;
 		});
 	}
-	import TokenUsage from "./TokenUsage.svelte";
-	import MermaidBranchViewer from "../BranchViewer.svelte";
-	import CarbonTreeView from "~icons/carbon/tree-view";
 
 	function sanitizeMd(md: string) {
 		let ret = md
@@ -114,7 +113,7 @@
 
 	let showTree = false;
 	let hasBranches = false;
-	let mermaidChart: string;
+	//	let mermaidChart: string;
 
 	const renderer = new marked.Renderer();
 	// For code blocks with simple backticks
@@ -354,9 +353,10 @@
 		showTree = !showTree;
 	}
 
-	$: if (showTree) {
+	/*	$: if (showTree) {
 		mermaidChart = generateMermaidChart(messages, id);
 	}
+*/
 
 	let memoizedHasBranches: boolean | null = null;
 	let lastMessageCount = 0;
@@ -480,7 +480,6 @@
 					{/each}
 				</div>
 			{/if}
-			<!--
 
 			<!-- Endpoint web sources -->
 			{#if messageFinalAnswer?.webSources && messageFinalAnswer.webSources.length}
@@ -503,7 +502,7 @@
 					{/each}
 				</div>
 			{/if}
-
+			<!--
 			{#if showTree}
 				<div class="mt-4 border-t pt-4 dark:border-gray-700">
 					<MermaidBranchViewer chartDefinition={mermaidChart} messageId={id} />

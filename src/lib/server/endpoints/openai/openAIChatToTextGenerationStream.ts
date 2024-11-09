@@ -97,7 +97,6 @@ export async function* openAIChatToTextGenerationStream(
 		}
 
 		if (completion.usage) {
-			console.log(JSON.stringify(completion.usage));
 			usage = {
 				input_tokens: completion.usage.prompt_tokens,
 				output_tokens: completion.usage.completion_tokens,

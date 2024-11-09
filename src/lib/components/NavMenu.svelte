@@ -19,6 +19,7 @@
 	export let user: LayoutData["user"];
 
 	let showFilters = false;
+	let uniqueAssistants = [];
 
 	function toggleFilters() {
 		showFilters = !showFilters;
@@ -33,12 +34,16 @@
 		new Date().setDate(new Date().getDate() - 7),
 		new Date().setMonth(new Date().getMonth() - 1),
 	];
-	const selectedAssistant = writable<string>("");
+
+	let resolvedConversations: ConvSidebar[] = [];
+	conversations.then((convs) => {
+		resolvedConversations = convs;
+	});
 
 	$: uniqueAssistants = Array.from(
-		new Set(conversations.map((conv) => conv.assistantId).filter(Boolean))
+		new Set(resolvedConversations.map((conv) => conv.assistantId).filter(Boolean))
 	).map((id) => {
-		const conv = conversations.find((c) => c.assistantId === id);
+		const conv = resolvedConversations.find((c) => c.assistantId === id);
 		return {
 			id,
 			name: conv?.assistantName,
@@ -54,10 +59,10 @@
 
 	$: filteredConversations =
 		$selectedAssistant === ""
-			? conversations
+			? resolvedConversations
 			: $selectedAssistant === "no-assistant"
-			? conversations.filter((conv) => !conv.assistantId)
-			: conversations.filter((conv) => conv.assistantId === $selectedAssistant);
+			? resolvedConversations.filter((conv) => !conv.assistantId)
+			: resolvedConversations.filter((conv) => conv.assistantId === $selectedAssistant);
 
 	$: groupedConversations = {
 		today: filteredConversations.filter(({ updatedAt }) => updatedAt.getTime() > dateRanges[0]),
@@ -78,61 +83,59 @@
 	} as const;
 
 	const nModels: number = $page.data.models.filter((el: Model) => !el.unlisted).length;
+
+	const selectedAssistant = writable<string>("");
 </script>
 
-<div class="flex h-full flex-col">
-	<!-- Header Section with Filter Buttons -->
-	<div class="sticky top-0 flex-none px-3 py-3.5 max-sm:pt-0">
-		<div class="mb-2 flex items-center justify-between">
+<div class="sticky top-0 z-10 bg-white dark:bg-gray-900">
+	<div class="flex flex-none items-center justify-between px-3 py-3.5 max-sm:pt-0">
+		<a
+			class="flex items-center rounded-xl text-lg font-semibold"
+			href="{envPublic.PUBLIC_ORIGIN}{base}/"
+		>
+			<Logo classNames="mr-1" />
+			{envPublic.PUBLIC_APP_NAME}
+		</a>
+		<div class="flex gap-2">
+			<button
+				on:click={toggleFilters}
+				class="flex items-center rounded-lg border bg-white px-2 py-0.5 text-center shadow-sm hover:shadow-none dark:border-gray-600 dark:bg-gray-700 sm:text-smd"
+				><CarbonFilter class="h-4 w-4" /></button
+			>
 			<a
-				class="flex items-center rounded-xl text-lg font-semibold"
-				href="{envPublic.PUBLIC_ORIGIN}{base}/"
+				href={`${base}/`}
+				on:click={handleNewChatClick}
+				class="flex rounded-lg border bg-white px-2 py-0.5 text-center shadow-sm hover:shadow-none dark:border-gray-600 dark:bg-gray-700 sm:text-smd"
 			>
-				<Logo classNames="mr-1" />
-				{envPublic.PUBLIC_APP_NAME}
+				New Chat
 			</a>
-			<div class="flex gap-2">
-				<button
-					on:click={toggleFilters}
-					class="flex items-center rounded-lg border bg-white px-2 py-0.5 text-center shadow-sm hover:shadow-none dark:border-gray-600 dark:bg-gray-700 sm:text-smd"
-					><CarbonFilter class=" h-4 w-4" /></button
-				>
-				<a
-					href={`${base}/`}
-					on:click={handleNewChatClick}
-					class="flex rounded-lg border bg-white px-2 py-0.5 text-center shadow-sm hover:shadow-none dark:border-gray-600 dark:bg-gray-700 sm:text-smd"
-				>
-					New Chat
-				</a>
-			</div>
 		</div>
-
-		<!-- Filter Buttons -->
-		{#if showFilters}
-			<div
-				class="mt-2 flex max-h-20 flex-wrap items-center gap-2 overflow-y-auto rounded-xl bg-gray-50 p-2 dark:bg-gray-800/30"
-			>
-				{#each uniqueAssistants as assistant}
-					<AssistantFilterButton
-						assistantId={assistant.id}
-						avatarHash={assistant.avatarHash}
-						assistantName={assistant.name}
-						isActive={$selectedAssistant === assistant.id}
-						onClick={() => handleAssistantFilter(assistant.id)}
-					/>
-				{/each}
-				<AssistantFilterButton
-					assistantId={"no-assistant"}
-					avatarHash={""}
-					assistantName="No Assistant"
-					isActive={$selectedAssistant === "no-assistant"}
-					onClick={() => handleAssistantFilter("no-assistant")}
-				>
-					<CarbonSubtractAlt class="h-5 w-5" />
-				</AssistantFilterButton>
-			</div>
-		{/if}
 	</div>
+
+	{#if showFilters}
+		<div
+			class="mx-3 mb-2 flex max-h-20 flex-wrap items-center gap-1 overflow-y-auto rounded-xl bg-gray-50 p-1 dark:bg-gray-800/30"
+		>
+			{#each uniqueAssistants as assistant}
+				<AssistantFilterButton
+					assistantId={assistant.id}
+					avatarHash={assistant.avatarHash}
+					assistantName={assistant.name}
+					isActive={$selectedAssistant === assistant.id}
+					onClick={() => handleAssistantFilter(assistant.id)}
+				/>
+			{/each}
+			<AssistantFilterButton
+				assistantId={"no-assistant"}
+				avatarHash={""}
+				assistantName="No Assistant"
+				isActive={$selectedAssistant === "no-assistant"}
+				onClick={() => handleAssistantFilter("no-assistant")}
+			>
+				<CarbonSubtractAlt class="h-5 w-5" />
+			</AssistantFilterButton>
+		</div>
+	{/if}
 </div>
 
 <div
