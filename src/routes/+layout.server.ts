@@ -158,15 +158,18 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
 						conv.title = conv.title.replace(/\uFFFD/gu, "").trimStart();
 
 						let avatarUrl: string | undefined = undefined;
+						let assistantName: string | undefined = undefined;
 
 						if (conv.assistantId) {
-							const hash = (
-								await collections.assistants.findOne({
-									_id: new ObjectId(conv.assistantId),
-								})
-							)?.avatar;
-							if (hash) {
-								avatarUrl = `/settings/assistants/${conv.assistantId}/avatar.jpg?hash=${hash}`;
+							const assistant = await collections.assistants.findOne({
+								_id: new ObjectId(conv.assistantId),
+							});
+							if (assistant) {
+								const hash = assistant.avatar;
+								if (hash) {
+									avatarUrl = `/settings/assistants/${conv.assistantId}/avatar.jpg?hash=${hash}`;
+								}
+								assistantName = assistant.name;
 							}
 						}
 
@@ -175,6 +178,7 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
 							title: conv.title,
 							model: conv.model ?? defaultModel,
 							updatedAt: conv.updatedAt,
+							assistantName,
 							assistantId: conv.assistantId?.toString(),
 							avatarUrl,
 						} satisfies ConvSidebar;

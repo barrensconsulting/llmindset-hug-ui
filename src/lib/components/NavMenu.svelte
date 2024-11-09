@@ -19,7 +19,14 @@
 	export let user: LayoutData["user"];
 
 	let showFilters = false;
-	let uniqueAssistants = [];
+
+	interface AssistantInfo {
+		id: string | undefined;
+		name: string | undefined;
+		avatarUrl: string | undefined;
+	}
+
+	let uniqueAssistants: AssistantInfo[] = [];
 
 	function toggleFilters() {
 		showFilters = !showFilters;
@@ -35,21 +42,18 @@
 		new Date().setMonth(new Date().getMonth() - 1),
 	];
 
-	let resolvedConversations: ConvSidebar[] = [];
-	conversations.then((convs) => {
-		resolvedConversations = convs;
-	});
-
-	$: uniqueAssistants = Array.from(
-		new Set(resolvedConversations.map((conv) => conv.assistantId).filter(Boolean))
-	).map((id) => {
-		const conv = resolvedConversations.find((c) => c.assistantId === id);
-		return {
-			id,
-			name: conv?.assistantName,
-			avatarHash: conv?.avatarHash,
-		};
-	});
+	$: uniqueAssistants = conversations.then((convs) =>
+		Array.from(new Set(convs.map((conv) => conv.assistantId).filter(Boolean))).map(
+			(id): AssistantInfo => {
+				const conv = convs.find((c) => c.assistantId === id);
+				return {
+					id: conv?.assistantId,
+					name: conv?.assistantName,
+					avatarUrl: conv?.avatarUrl,
+				};
+			}
+		)
+	);
 
 	function handleAssistantFilter(assistantId: string | undefined) {
 		if (assistantId) {
@@ -57,23 +61,24 @@
 		}
 	}
 
-	$: filteredConversations =
+	$: filteredConversations = conversations.then((convs) =>
 		$selectedAssistant === ""
-			? resolvedConversations
+			? convs
 			: $selectedAssistant === "no-assistant"
-			? resolvedConversations.filter((conv) => !conv.assistantId)
-			: resolvedConversations.filter((conv) => conv.assistantId === $selectedAssistant);
+			? convs.filter((conv) => !conv.assistantId)
+			: convs.filter((conv) => conv.assistantId === $selectedAssistant)
+	);
 
-	$: groupedConversations = {
-		today: filteredConversations.filter(({ updatedAt }) => updatedAt.getTime() > dateRanges[0]),
-		week: filteredConversations.filter(
+	$: groupedConversations = filteredConversations.then((convs) => ({
+		today: convs.filter(({ updatedAt }) => updatedAt.getTime() > dateRanges[0]),
+		week: convs.filter(
 			({ updatedAt }) => updatedAt.getTime() > dateRanges[1] && updatedAt.getTime() < dateRanges[0]
 		),
-		month: filteredConversations.filter(
+		month: convs.filter(
 			({ updatedAt }) => updatedAt.getTime() > dateRanges[2] && updatedAt.getTime() < dateRanges[1]
 		),
-		older: filteredConversations.filter(({ updatedAt }) => updatedAt.getTime() < dateRanges[2]),
-	};
+		older: convs.filter(({ updatedAt }) => updatedAt.getTime() < dateRanges[2]),
+	}));
 
 	const titles: { [key: string]: string } = {
 		today: "Today",
@@ -116,19 +121,27 @@
 		<div
 			class="mx-3 mb-2 flex max-h-20 flex-wrap items-center gap-1 overflow-y-auto rounded-xl bg-gray-50 p-1 dark:bg-gray-800/30"
 		>
-			{#each uniqueAssistants as assistant}
-				<AssistantFilterButton
-					assistantId={assistant.id}
-					avatarHash={assistant.avatarHash}
-					assistantName={assistant.name}
-					isActive={$selectedAssistant === assistant.id}
-					onClick={() => handleAssistantFilter(assistant.id)}
-				/>
-			{/each}
+			{#await uniqueAssistants}
+				<div class="flex gap-1">
+					{#each Array(3) as _}
+						<div class="h-4 w-4 animate-pulse rounded-full bg-gray-200 dark:bg-gray-700" />
+					{/each}
+				</div>
+			{:then assistants}
+				{#each assistants as assistant}
+					<AssistantFilterButton
+						assistantName={assistant.name}
+						assistantId={assistant.id}
+						avatarUrl={assistant.avatarUrl}
+						isActive={$selectedAssistant === assistant.id}
+						onClick={() => handleAssistantFilter(assistant.id)}
+					/>
+				{/each}
+			{/await}
 			<AssistantFilterButton
 				assistantId={"no-assistant"}
-				avatarHash={""}
 				assistantName="No Assistant"
+				avatarUrl=""
 				isActive={$selectedAssistant === "no-assistant"}
 				onClick={() => handleAssistantFilter("no-assistant")}
 			>

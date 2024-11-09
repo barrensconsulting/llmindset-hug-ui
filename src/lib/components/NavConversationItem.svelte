@@ -45,7 +45,9 @@
 		{:else if conv.assistantId}
 			<div
 				class="mr-1.5 flex size-4 flex-none items-center justify-center rounded-full bg-gray-300 text-xs font-bold uppercase text-gray-500"
-			/>
+			>
+				{conv.assistantName?.charAt(0).toUpperCase()}
+			</div>
 			<!--	{conv.title.replace(/\p{Emoji}/gu, "")} -->
 			{" | " + conv.title}
 		{:else}
