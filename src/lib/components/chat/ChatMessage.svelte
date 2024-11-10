@@ -449,6 +449,7 @@
 					}}
 				/>
 			{/if}
+			<!--
 			{#if hasBranches}
 				<button
 					class="ml-2 p-1 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
@@ -458,7 +459,7 @@
 					<CarbonTreeView />
 				</button>
 			{/if}
-
+				-->
 			<!-- Web Search sources -->
 			{#if webSearchSources?.length}
 				<div class="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm">

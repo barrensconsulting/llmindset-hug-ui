@@ -53,44 +53,16 @@
 		height: 0,
 	};
 
-	const svgConfig = {
-		USE_PROFILES: { svg: true },
-		ADD_TAGS: [
-			"svg",
-			"path",
-			"rect",
-			"circle",
-			"line",
-			"polyline",
-			"polygon",
-			"text",
-			"g",
-			"defs",
-			"clipPath",
-		],
-		ADD_ATTR: [
-			"viewBox",
-			"width",
-			"height",
-			"fill",
-			"stroke",
-			"transform",
-			"d",
-			"x",
-			"y",
-			"style",
-			"class",
-			"id",
-		],
-	};
-
 	function sanitizeSvg(svg: string): string {
-		try {
+		/*		try {
 			return DOMPurify.sanitize(svg, svgConfig);
 		} catch (error) {
 			svgState.error = "Failed to sanitize SVG content";
 			return "";
 		}
+			*/
+		//return DOMPurify.sanitize(svg);
+		return svg;
 	}
 
 	// Initialize mermaid with better error handling

@@ -121,6 +121,6 @@
 		"@google/generative-ai": "^0.14.1",
 		"aws4fetch": "^1.0.17",
 		"cohere-ai": "^7.9.0",
-		"openai": "^4.67.1"
+		"openai": "^4.71.1"
 	}
 }

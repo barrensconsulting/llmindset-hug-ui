@@ -34,9 +34,10 @@
 		return "$" + value.toFixed(2);
 	}
 
+	$: hasReasoning = (usage.reasoning_tokens ?? 0) > 0;
 	$: actualInputTokens = Math.max(0, usage.input_tokens - (usage.cached_tokens ?? 0));
 	$: isCached = (usage.cached_tokens ?? 0) > 0;
-	$: totalTokens = usage.input_tokens + usage.output_tokens;
+	$: totalTokens = usage.input_tokens + usage.output_tokens + (usage.reasoning_tokens ?? 0);
 
 	$: percentageUsed = totalTokens / (tokenInfo?.contextWindow ?? 1);
 
@@ -51,8 +52,10 @@
 			const inputTokensCost = actualInputTokens * inputCostPerToken;
 			const cachedTokensCost = (usage.cached_tokens ?? 0) * cachedCostPerToken;
 			const outputTokensCost = usage.output_tokens * outputCostPerToken;
+			const reasoningTokensCost = (usage.reasoning_tokens ?? 0) * outputCostPerToken; // Use output pricing
 
-			cost = (inputTokensCost + cachedTokensCost + outputTokensCost) / 1_000_000;
+			cost =
+				(inputTokensCost + cachedTokensCost + outputTokensCost + reasoningTokensCost) / 1_000_000;
 		} else {
 			cost = null; // Make sure to set cost to null if pricing information isn't available
 		}
@@ -66,9 +69,9 @@
 	>
 		{#if tokenInfo?.pricing}
 			<span
-				>Last Turn: {formatCurrency(cost)}{#if isCached}<sup>*</sup>{/if} | Context Use: {formatPercentage(
-					percentageUsed
-				)}</span
+				>Last Turn: {formatCurrency(cost)}{#if isCached}<sup>*</sup>{/if}{#if hasReasoning}<sup
+						>†</sup
+					>{/if} | Context Use: {formatPercentage(percentageUsed)}</span
 			>
 		{:else}
 			<span>Context Use: {formatPercentage(percentageUsed)}</span>
@@ -120,7 +123,23 @@
 								</td>
 							{/if}
 						</tr>
-
+						{#if usage.reasoning_tokens && usage.reasoning_tokens > 0}
+							<tr>
+								<td class="pr-2">Reasoning<sup>†</sup></td>
+								<td class="px-2 text-right">{formatTokenCount(usage.reasoning_tokens)}</td>
+								{#if tokenInfo?.pricing}
+									<td class="px-2 text-right">
+										{formatPrice(tokenInfo.pricing.output)}
+										<!-- Use output pricing -->
+									</td>
+									<td class="pl-2 text-right">
+										{formatTableCost(
+											((usage.reasoning_tokens ?? 0) * tokenInfo.pricing.output) / 1_000_000
+										)}
+									</td>
+								{/if}
+							</tr>
+						{/if}
 						<tr>
 							<td class="pr-2">Output</td>
 							<td class="px-2 text-right">{formatTokenCount(usage.output_tokens)}</td>

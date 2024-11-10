@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { openAICompletionToTextGenerationStream } from "./openAICompletionToTextGenerationStream";
-import { openAIChatToTextGenerationStream } from "./openAIChatToTextGenerationStream";
+import {
+	openAIChatToTextGenerationSingle,
+	openAIChatToTextGenerationStream,
+} from "./openAIChatToTextGenerationStream";
 import type { CompletionCreateParamsStreaming } from "openai/resources/completions";
 import type {
 	ChatCompletionCreateParamsStreaming,
@@ -127,6 +130,7 @@ export async function endpointOai(
 		extraBody,
 	} = endpointOAIParametersSchema.parse(input);
 
+	const systemRoleSupported = model.systemRoleSupported;
 	let OpenAI;
 	try {
 		OpenAI = (await import("openai")).OpenAI;
@@ -234,29 +238,43 @@ export async function endpointOai(
 				messagesOpenAI.push(...responses);
 			}
 
+			if (!systemRoleSupported) messagesOpenAI.shift();
+
 			const parameters = { ...model.parameters, ...generateSettings };
 			const toolCallChoices = createChatCompletionToolsArray(tools);
-			const body: ChatCompletionCreateParamsStreaming = {
+			const body = {
 				model: model.id ?? model.name,
 				messages: messagesOpenAI,
-				stream: true,
-				max_tokens: parameters?.max_new_tokens,
+				stream: systemRoleSupported,
 				stop: parameters?.stop,
 				temperature: parameters?.temperature,
 				top_p: parameters?.top_p,
 				frequency_penalty: parameters?.repetition_penalty,
+				...(systemRoleSupported ? { stream_options: { include_usage: true } } : {}),
+				...(systemRoleSupported ? { max_tokens: parameters?.max_new_tokens } : {}),
 				...(toolCallChoices.length > 0 ? { tools: toolCallChoices, tool_choice: "auto" } : {}),
-				stream_options: { include_usage: true },
 			};
 
-			const openChatAICompletion = await openai.chat.completions.create(body, {
-				body: { ...body, ...extraBody },
-				headers: {
-					"ChatUI-Conversation-ID": conversationId?.toString() ?? "",
-				},
-			});
-
-			return openAIChatToTextGenerationStream(openChatAICompletion);
+			if (systemRoleSupported) {
+				const openChatAICompletion = await openai.chat.completions.create(
+					body as ChatCompletionCreateParamsStreaming,
+					{
+						body: { ...body, ...extraBody },
+						headers: {
+							"ChatUI-Conversation-ID": conversationId?.toString() ?? "",
+						},
+					}
+				);
+				return openAIChatToTextGenerationStream(openChatAICompletion);
+			} else {
+				const openChatAICompletion = await openai.chat.completions.create(body, {
+					body: { ...body, ...extraBody },
+					headers: {
+						"ChatUI-Conversation-ID": conversationId?.toString() ?? "",
+					},
+				});
+				return openAIChatToTextGenerationSingle(openChatAICompletion);
+			}
 		};
 	} else {
 		throw new Error("Invalid completion type");

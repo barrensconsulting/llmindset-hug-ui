@@ -121,3 +121,33 @@ export async function* openAIChatToTextGenerationStream(
 		...(usage && { usage }),
 	} as TextGenerationStreamOutput & { usage?: UsageInfo };
 }
+
+/**
+ * Transform a non-streaming OpenAI chat completion into a stream of TextGenerationStreamOutput
+ */
+export async function* openAIChatToTextGenerationSingle(
+	completion: OpenAI.Chat.Completions.ChatCompletion
+) {
+	const content = completion.choices[0]?.message?.content || "";
+	const tokenId = 0;
+
+	// Yield the content as a single token
+	yield {
+		token: {
+			id: tokenId,
+			text: content,
+			logprob: 0,
+			special: false,
+		},
+		generated_text: content,
+		details: null,
+		...(completion.usage && {
+			usage: {
+				input_tokens: completion.usage.prompt_tokens,
+				output_tokens: completion.usage.completion_tokens,
+				cached_tokens: completion.usage.prompt_tokens_details?.cached_tokens,
+				reasoning_tokens: completion.usage.completion_tokens_details?.reasoning_tokens,
+			},
+		}),
+	} as TextGenerationStreamOutput;
+}
