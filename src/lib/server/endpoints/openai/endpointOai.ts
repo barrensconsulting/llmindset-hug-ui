@@ -194,8 +194,16 @@ export async function endpointOai(
 			let messagesOpenAI: OpenAI.Chat.Completions.ChatCompletionMessageParam[] =
 				await prepareMessages(messages, imageProcessor, !model.tools && model.multimodal);
 
-			if (messagesOpenAI?.[0]?.role !== "system") {
+			if (messagesOpenAI?.[0]?.role !== "system" && systemRoleSupported) {
 				messagesOpenAI = [{ role: "system", content: "" }, ...messagesOpenAI];
+			}
+
+			if (!systemRoleSupported && messagesOpenAI?.[0]?.role == "system") {
+				(
+					messagesOpenAI[0] as
+						| OpenAI.Chat.Completions.ChatCompletionSystemMessageParam
+						| OpenAI.Chat.Completions.ChatCompletionUserMessageParam
+				).role = "user";
 			}
 
 			if (messagesOpenAI?.[0]) {
@@ -237,8 +245,6 @@ export async function endpointOai(
 				messagesOpenAI.push(toolCallRequests);
 				messagesOpenAI.push(...responses);
 			}
-
-			if (!systemRoleSupported) messagesOpenAI.shift();
 
 			const parameters = { ...model.parameters, ...generateSettings };
 			const toolCallChoices = createChatCompletionToolsArray(tools);
