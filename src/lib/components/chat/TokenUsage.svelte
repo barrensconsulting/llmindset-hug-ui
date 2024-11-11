@@ -36,8 +36,9 @@
 
 	$: hasReasoning = (usage.reasoning_tokens ?? 0) > 0;
 	$: actualInputTokens = Math.max(0, usage.input_tokens - (usage.cached_tokens ?? 0));
+	$: actualOutputTokens = Math.max(0, usage.output_tokens - (usage.reasoning_tokens ?? 0));
 	$: isCached = (usage.cached_tokens ?? 0) > 0;
-	$: totalTokens = usage.input_tokens + usage.output_tokens + (usage.reasoning_tokens ?? 0);
+	$: totalTokens = usage.input_tokens + usage.output_tokens;
 
 	$: percentageUsed = totalTokens / (tokenInfo?.contextWindow ?? 1);
 
@@ -51,7 +52,7 @@
 
 			const inputTokensCost = actualInputTokens * inputCostPerToken;
 			const cachedTokensCost = (usage.cached_tokens ?? 0) * cachedCostPerToken;
-			const outputTokensCost = usage.output_tokens * outputCostPerToken;
+			const outputTokensCost = actualOutputTokens * outputCostPerToken;
 			const reasoningTokensCost = (usage.reasoning_tokens ?? 0) * outputCostPerToken; // Use output pricing
 
 			cost =
@@ -142,11 +143,11 @@
 						{/if}
 						<tr>
 							<td class="pr-2">Output</td>
-							<td class="px-2 text-right">{formatTokenCount(usage.output_tokens)}</td>
+							<td class="px-2 text-right">{formatTokenCount(actualOutputTokens)}</td>
 							{#if tokenInfo?.pricing}
 								<td class="px-2 text-right">{formatPrice(tokenInfo.pricing.output)}</td>
 								<td class="pl-2 text-right">
-									{formatTableCost((usage.output_tokens * tokenInfo.pricing.output) / 1_000_000)}
+									{formatTableCost((actualOutputTokens * tokenInfo.pricing.output) / 1_000_000)}
 								</td>
 							{/if}
 						</tr>
