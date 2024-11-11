@@ -5,7 +5,8 @@ This is a fork of ChatUI that adds the following features:
 - OpenAI beta o1 model support
 - SVG Diagrams (inline)
 - Mermaid Diagrams (inline - now with Code toggle)
-- Chat Cost Calculation (including OpenAI Cached Tokens)
+- Chat Cost Calculation (including OpenAI Cached and Reasoning Tokens)
+- Context Window usage calculation
 - Cloudflare Tunnel Authentication
 - Conversation Filtering by Assistant
 
