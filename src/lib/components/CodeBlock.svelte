@@ -5,8 +5,8 @@
 	import MermaidLiveBtn from "./MermaidLiveBtn.svelte";
 	import DOMPurify from "isomorphic-dompurify";
 	import mermaid from "mermaid";
-	import { default as hljs } from "highlight.js";
 	import type { RenderResult } from "mermaid";
+	import { default as hljs } from "highlight.js";
 	import Code from "~icons/carbon/Code";
 	import CodeHide from "~icons/carbon/CodeHide";
 	import ZoomIn from "~icons/carbon/ZoomIn";
@@ -45,7 +45,7 @@
 	};
 
 	let svgContainer: HTMLDivElement;
-	let svgElement: SVGSVGElement | null = null;
+	//	let svgElement: SVGSVGElement | null = null;
 	let svgState: SvgState = {
 		error: null,
 		scale: 1,

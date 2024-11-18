@@ -1,13 +1,10 @@
 <script lang="ts">
-	import { marked, type MarkedOptions } from "marked";
-	import markedKatex from "marked-katex-extension";
 	import type { Message } from "$lib/types/Message";
 
 	import { afterUpdate, createEventDispatcher, tick } from "svelte";
 	import { deepestChild } from "$lib/utils/deepestChild";
 	import { page } from "$app/stores";
 
-	import CodeBlock from "../CodeBlock.svelte";
 	import CopyToClipBoardBtn from "../CopyToClipBoardBtn.svelte";
 	import IconLoading from "../icons/IconLoading.svelte";
 	import CarbonRotate360 from "~icons/carbon/rotate-360";
@@ -18,7 +15,6 @@
 	import CarbonPen from "~icons/carbon/pen";
 	import CarbonChevronLeft from "~icons/carbon/chevron-left";
 	import CarbonChevronRight from "~icons/carbon/chevron-right";
-	import { PUBLIC_SEP_TOKEN } from "$lib/constants/publicSepToken";
 	import type { Model } from "$lib/types/Model";
 	import UploadedFile from "./UploadedFile.svelte";
 	import OpenWebSearchResults from "../OpenWebSearchResults.svelte";
@@ -34,58 +30,10 @@
 	import { useConvTreeStore } from "$lib/stores/convTree";
 	import ToolUpdate from "./ToolUpdate.svelte";
 	import { useSettingsStore } from "$lib/stores/settings";
-	import DOMPurify from "isomorphic-dompurify";
 	import { enhance } from "$app/forms";
 	import { browser } from "$app/environment";
-	import type { WebSearchSource } from "$lib/types/WebSearch";
 	import TokenUsage from "./TokenUsage.svelte";
-	import CarbonTreeView from "~icons/carbon/tree-view";
-
-	function addInlineCitations(md: string, webSearchSources: WebSearchSource[] = []): string {
-		const linkStyle =
-			"color: rgb(59, 130, 246); text-decoration: none; hover:text-decoration: underline;";
-
-		return md.replace(/\[(\d+)\]/g, (match: string) => {
-			const indices: number[] = (match.match(/\d+/g) || []).map(Number);
-			const links: string = indices
-				.map((index: number) => {
-					if (index === 0) return false;
-					const source = webSearchSources[index - 1];
-					if (source) {
-						return `<a href="${source.link}" target="_blank" rel="noreferrer" style="${linkStyle}">${index}</a>`;
-					}
-					return "";
-				})
-				.filter(Boolean)
-				.join(", ");
-
-			return links ? ` <sup>${links}</sup>` : match;
-		});
-	}
-
-	function sanitizeMd(md: string) {
-		let ret = md
-			.replace(/<\|[a-z]*$/, "")
-			.replace(/<\|[a-z]+\|$/, "")
-			.replace(/<$/, "")
-			.replaceAll(PUBLIC_SEP_TOKEN, " ")
-			.replaceAll(/<\|[a-z]+\|>/g, " ")
-			.replaceAll(/<br\s?\/?>/gi, "\n")
-			.replaceAll("<", "&lt;")
-			.trim();
-
-		for (const stop of [...(model.parameters?.stop ?? []), "<|endoftext|>"]) {
-			if (ret.endsWith(stop)) {
-				ret = ret.slice(0, -stop.length).trim();
-			}
-		}
-
-		return ret;
-	}
-
-	function unsanitizeMd(md: string) {
-		return md.replaceAll("&lt;", "<");
-	}
+	import MarkdownRenderer from "./MarkdownRenderer.svelte";
 
 	export let model: Model;
 	export let id: Message["id"];
@@ -110,46 +58,6 @@
 	let isCopied = false;
 
 	let initialized = false;
-
-	let showTree = false;
-	let hasBranches = false;
-	//	let mermaidChart: string;
-
-	const renderer = new marked.Renderer();
-	// For code blocks with simple backticks
-	renderer.codespan = (code) => {
-		// Unsanitize double-sanitized code
-		return `<code>${code.text.replaceAll("&amp;", "&")}</code>`;
-	};
-
-	renderer.code = (code) => {
-		return `<pre><code>${sanitizeMd(code.text)}</code></pre>`;
-	};
-
-	renderer.link = (link) => {
-		return `<a href="${link.href?.replace(/>$/, "")}" target="_blank" rel="noreferrer">${
-			link.text
-		}</a>`;
-	};
-
-	const { extensions, ...defaults } = marked.getDefaults() as MarkedOptions & {
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		extensions: any;
-	};
-	const options: MarkedOptions = {
-		...defaults,
-		gfm: true,
-		breaks: true,
-		renderer,
-	};
-
-	marked.use(
-		markedKatex({
-			throwOnError: false,
-		})
-	);
-
-	$: tokens = marked.lexer(addInlineCitations(sanitizeMd(message.content), webSearchSources));
 
 	$: emptyLoad =
 		!message.content && (webSearchIsDone || (searchUpdates && searchUpdates.length === 0));
@@ -267,9 +175,9 @@
 	}
 	$: if (message.children?.length === 0) $convTreeStore.leaf = message.id;
 
-	function escapeTooltip(content: string): string {
+	/*function escapeTooltip(content: string): string {
 		// Sanitize the content using the existing sanitizeMd function
-		let sanitized = sanitizeMd(content);
+		let sanitized = sanitize(content);
 
 		// Truncate to 30 characters and add ellipsis if needed
 		let truncated = sanitized.length > 80 ? sanitized.slice(0, 80) + "..." : sanitized;
@@ -356,11 +264,6 @@
 	/*	$: if (showTree) {
 		mermaidChart = generateMermaidChart(messages, id);
 	}
-*/
-
-	let memoizedHasBranches: boolean | null = null;
-	let lastMessageCount = 0;
-
 	function checkForBranches(messages: Message[]): boolean {
 		if (messages.length === lastMessageCount && memoizedHasBranches !== null) {
 			return memoizedHasBranches;
@@ -370,13 +273,15 @@
 		memoizedHasBranches = messages.some((message) => (message.children?.length ?? 0) > 1);
 		return memoizedHasBranches;
 	}
-
-	$: hasBranches = checkForBranches(messages);
+		
+	let memoizedHasBranches: boolean | null = null;
+	let lastMessageCount = 0;
+*/
 </script>
 
 {#if message.from === "assistant"}
 	<div
-		class="group relative -mb-4 flex items-start justify-start gap-4 pb-4 leading-relaxed"
+		class="message-assistant group relative -mb-4 flex items-start justify-start gap-4 pb-4 leading-relaxed"
 		id="message-assistant-{message.id}"
 		role="presentation"
 		on:click={() => (isTapped = !isTapped)}
@@ -407,7 +312,7 @@
 			{/if}
 			{#if searchUpdates && searchUpdates.length > 0}
 				<OpenWebSearchResults
-					classNames={tokens.length ? "mb-3.5" : ""}
+					classNames={message.content.length ? "mb-3.5" : ""}
 					webSearchMessages={searchUpdates}
 				/>
 			{/if}
@@ -422,22 +327,11 @@
 				{/each}
 			{/if}
 
-			<div
-				class="prose max-w-none dark:prose-invert max-sm:prose-sm prose-headings:font-semibold prose-h1:text-lg prose-h2:text-base prose-h3:text-base prose-pre:bg-gray-800 dark:prose-pre:bg-gray-900"
-				bind:this={contentEl}
-			>
+			<div bind:this={contentEl}>
 				{#if isLast && loading && $settings.disableStream}
 					<IconLoading classNames="loading inline ml-2 first:ml-0" />
 				{/if}
-				{#each tokens as token}
-					{#if token.type === "code"}
-						<CodeBlock lang={token.lang} code={unsanitizeMd(token.text)} {loading} />
-					{:else}
-						{#await marked.parse(token.raw, options) then parsed}
-							{@html DOMPurify.sanitize(parsed)}
-						{/await}
-					{/if}
-				{/each}
+				<MarkdownRenderer content={message.content} sources={webSearchSources} {loading} />
 			</div>
 
 			{#if message.usage && model.tokenInfo && model.tokenInfo.contextWindow !== undefined}
@@ -569,7 +463,7 @@
 {/if}
 {#if message.from === "user"}
 	<div
-		class="group relative w-full items-start justify-start gap-4 max-sm:text-sm"
+		class="message-user group relative w-full items-start justify-start gap-4 max-sm:text-sm"
 		id="message-user-{message.id}"
 		role="presentation"
 		on:click={() => (isTapped = !isTapped)}
