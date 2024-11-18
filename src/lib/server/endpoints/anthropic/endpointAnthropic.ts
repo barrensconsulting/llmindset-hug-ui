@@ -45,7 +45,6 @@ export async function endpointAnthropic(
 		throw new Error("Failed to import @anthropic-ai/sdk", { cause: e });
 	}
 
-	//	console.log("---->" + JSON.stringify(mime));
 	const anthropic = new Anthropic({
 		apiKey,
 		baseURL,
