@@ -5,6 +5,7 @@ import type { TextGenerationStreamOutput } from "@huggingface/inference";
 import { createImageProcessorOptionsValidator } from "../images";
 import { endpointMessagesToAnthropicMessages } from "./utils";
 import { createDocumentProcessorOptionsValidator } from "../document";
+import type { MessageParam } from "@anthropic-ai/sdk/resources/messages.mjs";
 import type { UsageInfo } from "$lib/types/Message";
 
 export const endpointAnthropicParametersSchema = z.object({
@@ -65,7 +66,10 @@ export async function endpointAnthropic(
 		return (async function* () {
 			const stream = anthropic.messages.stream({
 				model: model.id ?? model.name,
-				messages: await endpointMessagesToAnthropicMessages(messages, multimodal),
+				messages: (await endpointMessagesToAnthropicMessages(
+					messages,
+					multimodal
+				)) as MessageParam[],
 				max_tokens: parameters?.max_new_tokens,
 				temperature: parameters?.temperature,
 				top_p: parameters?.top_p,
