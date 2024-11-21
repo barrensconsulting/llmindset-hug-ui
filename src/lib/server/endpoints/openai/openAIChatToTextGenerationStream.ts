@@ -149,5 +149,5 @@ export async function* openAIChatToTextGenerationSingle(
 				reasoning_tokens: completion.usage.completion_tokens_details?.reasoning_tokens,
 			},
 		}),
-	} as TextGenerationStreamOutput;
+	} as TextGenerationStreamOutput & { useage?: UsageInfo };
 }

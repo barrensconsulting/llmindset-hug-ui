@@ -6,6 +6,7 @@ import {
 } from "./openAIChatToTextGenerationStream";
 import type { CompletionCreateParamsStreaming } from "openai/resources/completions";
 import type {
+	ChatCompletionCreateParamsNonStreaming,
 	ChatCompletionCreateParamsStreaming,
 	ChatCompletionTool,
 } from "openai/resources/chat/completions";
@@ -275,12 +276,15 @@ export async function endpointOai(
 				);
 				return openAIChatToTextGenerationStream(openChatAICompletion);
 			} else {
-				const openChatAICompletion = await openai.chat.completions.create(body, {
-					body: { ...body, ...extraBody },
-					headers: {
-						"ChatUI-Conversation-ID": conversationId?.toString() ?? "",
-					},
-				});
+				const openChatAICompletion = await openai.chat.completions.create(
+					body as ChatCompletionCreateParamsNonStreaming,
+					{
+						body: { ...body, ...extraBody },
+						headers: {
+							"ChatUI-Conversation-ID": conversationId?.toString() ?? "",
+						},
+					}
+				);
 				return openAIChatToTextGenerationSingle(openChatAICompletion);
 			}
 		};
