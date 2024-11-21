@@ -28,6 +28,21 @@
 
 	let uniqueAssistants: AssistantInfo[] = [];
 
+	$: {
+		conversations.then((convs) => {
+			uniqueAssistants = Array.from(
+				new Set(convs.map((conv) => conv.assistantId).filter(Boolean))
+			).map((id): AssistantInfo => {
+				const conv = convs.find((c) => c.assistantId === id);
+				return {
+					id: conv?.assistantId,
+					name: conv?.assistantName,
+					avatarUrl: conv?.avatarUrl,
+				};
+			});
+		});
+	}
+
 	function toggleFilters() {
 		showFilters = !showFilters;
 	}
@@ -41,19 +56,6 @@
 		new Date().setDate(new Date().getDate() - 7),
 		new Date().setMonth(new Date().getMonth() - 1),
 	];
-
-	$: uniqueAssistants = conversations.then((convs) =>
-		Array.from(new Set(convs.map((conv) => conv.assistantId).filter(Boolean))).map(
-			(id): AssistantInfo => {
-				const conv = convs.find((c) => c.assistantId === id);
-				return {
-					id: conv?.assistantId,
-					name: conv?.assistantName,
-					avatarUrl: conv?.avatarUrl,
-				};
-			}
-		)
-	);
 
 	function handleAssistantFilter(assistantId: string | undefined) {
 		if (assistantId) {
