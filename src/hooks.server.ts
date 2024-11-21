@@ -29,7 +29,7 @@ if (!building) {
 	logger.info("Starting server...");
 	initExitHandler();
 
-	await checkAndRunMigrations();
+	checkAndRunMigrations();
 	if (env.ENABLE_ASSISTANTS) {
 		refreshAssistantsCounts();
 	}
@@ -66,6 +66,7 @@ export const handleError: HandleServerError = async ({ error, event, status, mes
 		error,
 		errorId,
 		status,
+		stack: error instanceof Error ? error.stack : undefined,
 	});
 
 	return {
