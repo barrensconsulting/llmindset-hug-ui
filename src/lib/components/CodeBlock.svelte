@@ -6,7 +6,6 @@
 	import hljs from "highlight.js";
 	import mermaid from "mermaid";
 	import type { RenderResult } from "mermaid";
-	import { default as hljs } from "highlight.js";
 	import Code from "~icons/carbon/Code";
 	import CodeHide from "~icons/carbon/CodeHide";
 	import ZoomIn from "~icons/carbon/ZoomIn";
@@ -115,11 +114,6 @@
 		}
 	}
 
-	afterUpdate(async () => {
-		const language = hljs.getLanguage(lang);
-		highlightedCode = hljs.highlightAuto(code, language?.aliases).value;
-	});
-
 	function handleSvgLoad(container: HTMLDivElement) {
 		if (!container) return;
 
@@ -193,36 +187,28 @@
 		? "SVG diagram"
 		: "Code block"}
 >
-	<!--
--->{#if lang === "mermaid" && mermaidState.rendered}<!--
-    -->{#await renderPromise}<!--
-        -->
+	{#if lang === "mermaid" && mermaidState.rendered}
+		{#await renderPromise}
 			<pre>{code}</pre>
-			<!--
-    -->{:then result}<!--
-        -->{#if result && result.svg && !mermaidState.error}<!--
-            -->{#if showCode}<!--
-                -->
+		{:then result}
+			{#if result && result.svg && !mermaidState.error}
+				{#if showCode}
 					<pre
 						class="scrollbar-custom overflow-auto px-5 scrollbar-thumb-gray-500 hover:scrollbar-thumb-gray-400 dark:scrollbar-thumb-white/10 dark:hover:scrollbar-thumb-white/20"><code
 							class="language-{lang}"
-							>{@html DOMPurify.sanitize(highlightedCode || code.replaceAll("<", "&lt;"))}</code
+							><!-- eslint-disable svelte/no-at-html-tags -->{@html DOMPurify.sanitize(
+								highlightedCode || code.replaceAll("<", "&lt;")
+							)}</code
 						></pre>
-					<!--
-            -->{:else}<!--
-                -->{@html result.svg}<!--
-            -->{/if}<!--
-        -->{:else}<!--
-            -->
+				{:else}
+					{@html result.svg}
+				{/if}
+			{:else}
 				<pre>{DOMPurify.sanitize(code)}</pre>
-				<!--
-            -->
 				<p class="text-red-500" role="alert">{mermaidState.error?.message || "Unknown Error"}</p>
-				<!--
-        -->{/if}<!--
-    -->{/await}<!--
--->{:else if lang === "svg" && !showCode}<!--
-    -->
+			{/if}
+		{/await}
+	{:else if lang === "svg" && !showCode}
 		<div class="relative">
 			<div bind:this={svgContainer} class="svg-container">
 				{#if svgState.error}
@@ -232,7 +218,7 @@
 						class="svg-content"
 						style="transform: scale({svgState.scale}); transform-origin: top left;"
 					>
-						{@html sanitizeSvg(code)}
+						<!-- eslint-disable svelte/no-at-html-tags -->{@html sanitizeSvg(code)}
 					</div>
 					<div
 						class="absolute bottom-2 right-2 flex gap-2 rounded-lg bg-white/80 p-1 dark:bg-black/80"

@@ -29,17 +29,15 @@
 	let uniqueAssistants: AssistantInfo[] = [];
 
 	$: {
-		conversations.then((convs) => {
-			uniqueAssistants = Array.from(
-				new Set(convs.map((conv) => conv.assistantId).filter(Boolean))
-			).map((id): AssistantInfo => {
-				const conv = convs.find((c) => c.assistantId === id);
-				return {
-					id: conv?.assistantId,
-					name: conv?.assistantName,
-					avatarUrl: conv?.avatarUrl,
-				};
-			});
+		uniqueAssistants = Array.from(
+			new Set(conversations.flatMap((conv) => conv.assistantId).filter(Boolean))
+		).map((id): AssistantInfo => {
+			const conv = conversations.find((c) => c.assistantId === id);
+			return {
+				id: conv?.assistantId,
+				name: conv?.assistantName,
+				avatarUrl: conv?.avatarUrl,
+			};
 		});
 	}
 
@@ -63,23 +61,22 @@
 		}
 	}
 
-	$: filteredConversations = conversations.then((convs) =>
+	$: filteredConversations =
 		$selectedAssistant === ""
-			? convs
+			? conversations
 			: $selectedAssistant === "no-assistant"
-			? convs.filter((conv) => !conv.assistantId)
-			: convs.filter((conv) => conv.assistantId === $selectedAssistant)
-	);
+			? conversations.filter((conv) => !conv.assistantId)
+			: conversations.filter((conv) => conv.assistantId === $selectedAssistant);
 
-	$: groupedConversations = filteredConversations.then((convs) => ({
-		today: convs.filter(({ updatedAt }) => updatedAt.getTime() > dateRanges[0]),
-		week: convs.filter(
+	$: groupedConversations = {
+		today: filteredConversations.filter(({ updatedAt }) => updatedAt.getTime() > dateRanges[0]),
+		week: filteredConversations.filter(
 			({ updatedAt }) => updatedAt.getTime() > dateRanges[1] && updatedAt.getTime() < dateRanges[0]
 		),
-		month: conversations.filter(
+		month: filteredConversations.filter(
 			({ updatedAt }) => updatedAt.getTime() > dateRanges[2] && updatedAt.getTime() < dateRanges[1]
 		),
-		older: conversations.filter(({ updatedAt }) => updatedAt.getTime() < dateRanges[2]),
+		older: filteredConversations.filter(({ updatedAt }) => updatedAt.getTime() < dateRanges[2]),
 	};
 
 	const titles: { [key: string]: string } = {
