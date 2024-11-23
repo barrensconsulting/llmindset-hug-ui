@@ -14,7 +14,7 @@
 	import AssistantFilterButton from "./AssistantFilterButton.svelte";
 	import CarbonFilter from "~icons/carbon/filter";
 	import CarbonSubtractAlt from "~icons/carbon/subtract-alt";
-	export let conversations: Promise<ConvSidebar[]>;
+	export let conversations: ConvSidebar[];
 	export let canLogin: boolean;
 	export let user: LayoutData["user"];
 
@@ -76,11 +76,11 @@
 		week: convs.filter(
 			({ updatedAt }) => updatedAt.getTime() > dateRanges[1] && updatedAt.getTime() < dateRanges[0]
 		),
-		month: convs.filter(
+		month: conversations.filter(
 			({ updatedAt }) => updatedAt.getTime() > dateRanges[2] && updatedAt.getTime() < dateRanges[1]
 		),
-		older: convs.filter(({ updatedAt }) => updatedAt.getTime() < dateRanges[2]),
-	}));
+		older: conversations.filter(({ updatedAt }) => updatedAt.getTime() < dateRanges[2]),
+	};
 
 	const titles: { [key: string]: string } = {
 		today: "Today",

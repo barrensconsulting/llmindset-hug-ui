@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { onMount } from "svelte";
-	import { afterUpdate } from "svelte";
 	import CopyToClipBoardBtn from "./CopyToClipBoardBtn.svelte";
 	import MermaidLiveBtn from "./MermaidLiveBtn.svelte";
 	import DOMPurify from "isomorphic-dompurify";
+	import hljs from "highlight.js";
 	import mermaid from "mermaid";
 	import type { RenderResult } from "mermaid";
 	import { default as hljs } from "highlight.js";
@@ -20,7 +20,7 @@
 	let highlightedCode = "";
 	let mermaidId = `mermaid-${Math.random().toString(36).slice(2, 9)}`;
 	let renderPromise: Promise<RenderResult | null> | null = null;
-
+	$: highlightedCode = hljs.highlightAuto(code, hljs.getLanguage(lang)?.aliases).value;
 	// Add type safety for mermaid error handling
 	type MermaidError = {
 		message: string;
@@ -267,9 +267,8 @@
     -->
 		<pre
 			class="scrollbar-custom overflow-auto px-5 scrollbar-thumb-gray-500 hover:scrollbar-thumb-gray-400 dark:scrollbar-thumb-white/10 dark:hover:scrollbar-thumb-white/20"><code
-				class="language-{lang}"
-				>{@html DOMPurify.sanitize(highlightedCode || code.replaceAll("<", "&lt;"))}</code
-			></pre>
+				><!-- eslint-disable svelte/no-at-html-tags -->{@html DOMPurify.sanitize(highlightedCode)}
+		</code></pre>
 		<!--
 -->{/if}
 
