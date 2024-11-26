@@ -3,8 +3,17 @@ import type { Endpoint } from "../endpoints";
 import { env } from "$env/dynamic/private";
 import type { TextGenerationStreamOutput } from "@huggingface/inference";
 import { createImageProcessorOptionsValidator } from "../images";
-import { endpointMessagesToAnthropicMessages } from "./utils";
+import { endpointMessagesToAnthropicMessages, addToolResults } from "./utils";
 import { createDocumentProcessorOptionsValidator } from "../document";
+import type {
+	Tool,
+	ToolCall,
+	ToolInput,
+	ToolInputFile,
+	ToolInputFixed,
+	ToolInputOptional,
+} from "$lib/types/Tool";
+import type Anthropic from "@anthropic-ai/sdk";
 import type { MessageParam } from "@anthropic-ai/sdk/resources/messages.mjs";
 import type { UsageInfo } from "$lib/types/Message";
 
@@ -53,7 +62,14 @@ export async function endpointAnthropic(
 		defaultQuery,
 	});
 
-	return async ({ messages, preprompt, generateSettings }) => {
+	return async ({
+		messages,
+		preprompt,
+		generateSettings,
+		conversationId,
+		tools = [],
+		toolResults = [],
+	}) => {
 		let system = preprompt;
 		if (messages?.[0]?.from === "system") {
 			system = messages[0].content;
@@ -66,10 +82,13 @@ export async function endpointAnthropic(
 		return (async function* () {
 			const stream = anthropic.messages.stream({
 				model: model.id ?? model.name,
-				messages: (await endpointMessagesToAnthropicMessages(
-					messages,
-					multimodal
-				)) as MessageParam[],
+				tools: createAnthropicTools(tools),
+				tool_choice:
+					tools.length > 0 ? { type: "auto", disable_parallel_tool_use: false } : undefined,
+				messages: addToolResults(
+					await endpointMessagesToAnthropicMessages(messages, multimodal, conversationId),
+					toolResults
+				) as MessageParam[],
 				max_tokens: parameters?.max_new_tokens,
 				temperature: parameters?.temperature,
 				top_p: parameters?.top_p,
@@ -81,35 +100,104 @@ export async function endpointAnthropic(
 			while (true) {
 				const result = await Promise.race([stream.emitted("text"), stream.emitted("end")]);
 
-				// Stream end
 				if (result === undefined) {
-					const finalMessage = await stream.finalMessage();
-					yield {
-						token: {
-							id: tokenId++,
-							text: "",
-							logprob: 0,
-							special: true,
-						},
-						generated_text: await stream.finalText(), // Use finalText() for consistency with original
-						details: null,
-						usage: finalMessage.usage, // Add usage from finalMessage
-					} satisfies TextGenerationStreamOutput & { usage?: UsageInfo };
+					if ("tool_use" === stream.receivedMessages[0].stop_reason) {
+						// this should really create a new "Assistant" message with the tool id in it.
+						const toolCalls: ToolCall[] = stream.receivedMessages[0].content
+							.filter(
+								(block): block is Anthropic.Messages.ContentBlock & { type: "tool_use" } =>
+									block.type === "tool_use"
+							)
+							.map((block) => ({
+								name: block.name,
+								parameters: block.input as Record<string, string | number | boolean>,
+								id: block.id,
+							}));
+
+						yield {
+							token: { id: tokenId, text: "", logprob: 0, special: false, toolCalls },
+							generated_text: null,
+							details: null,
+						};
+					} else {
+						const finalMessage = await stream.finalMessage();
+						yield {
+							token: {
+								id: tokenId++,
+								text: "",
+								logprob: 0,
+								special: true,
+							},
+							generated_text: await stream.finalText(), // Use finalText() for consistency with original
+							details: null,
+							usage: finalMessage.usage, // Add usage from finalMessage
+						} satisfies TextGenerationStreamOutput & { usage?: UsageInfo };
+					}
+
 					return;
 				}
-
-				// Text delta
-				yield {
-					token: {
-						id: tokenId++,
-						text: result as unknown as string,
-						special: false,
-						logprob: 0,
-					},
-					generated_text: null,
-					details: null,
-				} satisfies TextGenerationStreamOutput;
 			}
 		})();
 	};
+}
+
+function createAnthropicTools(tools: Tool[]): Anthropic.Messages.Tool[] {
+	return tools.map((tool) => {
+		const properties = tool.inputs.reduce((acc, input) => {
+			acc[input.name] = convertToolInputToJSONSchema(input);
+			return acc;
+		}, {} as Record<string, unknown>);
+
+		const required = tool.inputs
+			.filter((input) => input.paramType === "required")
+			.map((input) => input.name);
+
+		return {
+			name: tool.name,
+			description: tool.description,
+			input_schema: {
+				type: "object",
+				properties,
+				required: required.length > 0 ? required : undefined,
+			},
+		};
+	});
+}
+
+function convertToolInputToJSONSchema(input: ToolInput): Record<string, unknown> {
+	const baseSchema: Record<string, unknown> = {};
+	if ("description" in input) {
+		baseSchema["description"] = input.description || "";
+	}
+	switch (input.paramType) {
+		case "optional":
+			baseSchema["default"] = (input as ToolInputOptional).default;
+			break;
+		case "fixed":
+			baseSchema["const"] = (input as ToolInputFixed).value;
+			break;
+	}
+
+	if (input.type === "file") {
+		baseSchema["type"] = "string";
+		baseSchema["format"] = "binary";
+		baseSchema["mimeTypes"] = (input as ToolInputFile).mimeTypes;
+	} else {
+		switch (input.type) {
+			case "str":
+				baseSchema["type"] = "string";
+				break;
+			case "int":
+				baseSchema["type"] = "integer";
+				break;
+			case "float":
+				baseSchema["type"] = "number";
+				break;
+			case "bool":
+				baseSchema["type"] = "boolean";
+				break;
+		}
+	}
+
+	return baseSchema;
 }
