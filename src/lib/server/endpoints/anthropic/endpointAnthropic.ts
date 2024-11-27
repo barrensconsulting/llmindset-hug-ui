@@ -16,6 +16,7 @@ import type {
 import type Anthropic from "@anthropic-ai/sdk";
 import type { MessageParam } from "@anthropic-ai/sdk/resources/messages.mjs";
 import type { UsageInfo } from "$lib/types/Message";
+import directlyAnswer from "$lib/server/tools/directlyAnswer";
 
 export const endpointAnthropicParametersSchema = z.object({
 	weight: z.number().int().positive().default(1),
@@ -153,26 +154,28 @@ export async function endpointAnthropic(
 }
 
 function createAnthropicTools(tools: Tool[]): Anthropic.Messages.Tool[] {
-	return tools.map((tool) => {
-		const properties = tool.inputs.reduce((acc, input) => {
-			acc[input.name] = convertToolInputToJSONSchema(input);
-			return acc;
-		}, {} as Record<string, unknown>);
+	return tools
+		.filter((tool) => tool.name !== directlyAnswer.name)
+		.map((tool) => {
+			const properties = tool.inputs.reduce((acc, input) => {
+				acc[input.name] = convertToolInputToJSONSchema(input);
+				return acc;
+			}, {} as Record<string, unknown>);
 
-		const required = tool.inputs
-			.filter((input) => input.paramType === "required")
-			.map((input) => input.name);
+			const required = tool.inputs
+				.filter((input) => input.paramType === "required")
+				.map((input) => input.name);
 
-		return {
-			name: tool.name,
-			description: tool.description,
-			input_schema: {
-				type: "object",
-				properties,
-				required: required.length > 0 ? required : undefined,
-			},
-		};
-	});
+			return {
+				name: tool.name,
+				description: tool.description,
+				input_schema: {
+					type: "object",
+					properties,
+					required: required.length > 0 ? required : undefined,
+				},
+			};
+		});
 }
 
 function convertToolInputToJSONSchema(input: ToolInput): Record<string, unknown> {
