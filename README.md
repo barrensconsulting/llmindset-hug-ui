@@ -10,6 +10,7 @@ This is a fork of ChatUI that adds the following features:
 - Context Window usage calculation
 - Cloudflare Tunnel Authentication
 - Conversation Filtering by Assistant
+- Anthropic PDF Support
 
 **Find the docs at [hf.co/docs/chat-ui](https://huggingface.co/docs/chat-ui/index).**
 
