@@ -3,7 +3,7 @@
 This is a fork of ChatUI that adds the following features:
 
 - Basic Tool (+multimodal) support for Anthropic Endpoints
-- OpenAI beta o1 model support
+- OpenAI beta o1 model support (now with Streaming!)
 - SVG Diagrams (inline)
 - Mermaid Diagrams (inline - now with Code toggle)
 - Chat Cost Calculation (including OpenAI Cached and Reasoning Tokens)
