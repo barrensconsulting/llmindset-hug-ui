@@ -26,6 +26,8 @@
 		type MessageWebSearchSourcesUpdate,
 		type MessageWebSearchUpdate,
 		type MessageFinalAnswerUpdate,
+		type MessageReasoningUpdate,
+		MessageReasoningUpdateType,
 	} from "$lib/types/MessageUpdate";
 	import { base } from "$app/paths";
 	import { useConvTreeStore } from "$lib/stores/convTree";
@@ -35,6 +37,7 @@
 	import { browser } from "$app/environment";
 	import TokenUsage from "./TokenUsage.svelte";
 	import MarkdownRenderer from "./MarkdownRenderer.svelte";
+	import OpenReasoningResults from "./OpenReasoningResults.svelte";
 
 	export let model: Model;
 	export let id: Message["id"];
@@ -92,8 +95,12 @@
 		}
 	}
 
-	$: searchUpdates = (message.updates?.filter(({ type }) => type === "webSearch") ??
+	$: searchUpdates = (message.updates?.filter(({ type }) => type === MessageUpdateType.WebSearch) ??
 		[]) as MessageWebSearchUpdate[];
+
+	$: reasoningUpdates = (message.updates?.filter(
+		({ type }) => type === MessageUpdateType.Reasoning
+	) ?? []) as MessageReasoningUpdate[];
 
 	$: messageFinalAnswer = message.updates?.find(
 		({ type }) => type === MessageUpdateType.FinalAnswer
@@ -313,9 +320,17 @@
 				</div>
 			{/if}
 			{#if searchUpdates && searchUpdates.length > 0}
-				<OpenWebSearchResults
-					classNames={message.content.length ? "mb-3.5" : ""}
-					webSearchMessages={searchUpdates}
+				<OpenWebSearchResults webSearchMessages={searchUpdates} />
+			{/if}
+			{#if reasoningUpdates && reasoningUpdates.length > 0}
+				{@const summaries = reasoningUpdates
+					.filter((u) => u.subtype === MessageReasoningUpdateType.Status)
+					.map((u) => u.status)}
+
+				<OpenReasoningResults
+					summary={summaries[summaries.length - 1] || ""}
+					content={message.reasoning || ""}
+					loading={loading && message.content.length === 0}
 				/>
 			{/if}
 
@@ -329,11 +344,19 @@
 				{/each}
 			{/if}
 
-			<div bind:this={contentEl}>
+			<div
+				bind:this={contentEl}
+				class:mt-2={reasoningUpdates.length > 0 || searchUpdates.length > 0}
+			>
 				{#if isLast && loading && $settings.disableStream}
 					<IconLoading classNames="loading inline ml-2 first:ml-0" />
 				{/if}
-				<MarkdownRenderer content={message.content} sources={webSearchSources} {loading} />
+
+				<div
+					class="prose max-w-none dark:prose-invert max-sm:prose-sm prose-headings:font-semibold prose-h1:text-lg prose-h2:text-base prose-h3:text-base prose-pre:bg-gray-800 dark:prose-pre:bg-gray-900"
+				>
+					<MarkdownRenderer content={message.content} sources={webSearchSources} {loading} />
+				</div>
 			</div>
 
 			{#if message.usage && model.tokenInfo && model.tokenInfo.contextWindow !== undefined}
