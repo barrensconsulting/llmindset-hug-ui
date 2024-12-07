@@ -1,12 +1,8 @@
 import { z } from "zod";
 import { openAICompletionToTextGenerationStream } from "./openAICompletionToTextGenerationStream";
-import {
-	openAIChatToTextGenerationSingle,
-	openAIChatToTextGenerationStream,
-} from "./openAIChatToTextGenerationStream";
+import { openAIChatToTextGenerationStream } from "./openAIChatToTextGenerationStream";
 import type { CompletionCreateParamsStreaming } from "openai/resources/completions";
 import type {
-	ChatCompletionCreateParamsNonStreaming,
 	ChatCompletionCreateParamsStreaming,
 	ChatCompletionTool,
 } from "openai/resources/chat/completions";
@@ -253,40 +249,27 @@ export async function endpointOai(
 			const body = {
 				model: model.id ?? model.name,
 				messages: messagesOpenAI,
-				stream: systemRoleSupported,
+				stream: true,
 				stop: parameters?.stop,
 				temperature: parameters?.temperature,
 				top_p: parameters?.top_p,
 				frequency_penalty: parameters?.repetition_penalty,
 				presence_penalty: parameters?.presence_penalty,
-				...(systemRoleSupported ? { stream_options: { include_usage: true } } : {}),
+				stream_options: { include_usage: true },
 				...(systemRoleSupported ? { max_tokens: parameters?.max_new_tokens } : {}),
 				...(toolCallChoices.length > 0 ? { tools: toolCallChoices, tool_choice: "auto" } : {}),
 			};
 
-			if (systemRoleSupported) {
-				const openChatAICompletion = await openai.chat.completions.create(
-					body as ChatCompletionCreateParamsStreaming,
-					{
-						body: { ...body, ...extraBody },
-						headers: {
-							"ChatUI-Conversation-ID": conversationId?.toString() ?? "",
-						},
-					}
-				);
-				return openAIChatToTextGenerationStream(openChatAICompletion);
-			} else {
-				const openChatAICompletion = await openai.chat.completions.create(
-					body as ChatCompletionCreateParamsNonStreaming,
-					{
-						body: { ...body, ...extraBody },
-						headers: {
-							"ChatUI-Conversation-ID": conversationId?.toString() ?? "",
-						},
-					}
-				);
-				return openAIChatToTextGenerationSingle(openChatAICompletion);
-			}
+			const openChatAICompletion = await openai.chat.completions.create(
+				body as ChatCompletionCreateParamsStreaming,
+				{
+					body: { ...body, ...extraBody },
+					headers: {
+						"ChatUI-Conversation-ID": conversationId?.toString() ?? "",
+					},
+				}
+			);
+			return openAIChatToTextGenerationStream(openChatAICompletion);
 		};
 	} else {
 		throw new Error("Invalid completion type");
