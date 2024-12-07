@@ -5,8 +5,6 @@ import type { TextGenerationStreamOutput } from "@huggingface/inference";
 import { createImageProcessorOptionsValidator } from "../images";
 import { endpointMessagesToAnthropicMessages, addToolResults } from "./utils";
 import { createDocumentProcessorOptionsValidator } from "../document";
-import type { MessageParam } from "@anthropic-ai/sdk/resources/messages.mjs";
-import { createDocumentProcessorOptionsValidator } from "../document";
 import type {
 	Tool,
 	ToolCall,

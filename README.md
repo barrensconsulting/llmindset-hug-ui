@@ -2,6 +2,7 @@
 
 This is a fork of ChatUI that adds the following features:
 
+- Basic Tool (+multimodal) support for Anthropic Endpoints
 - OpenAI beta o1 model support
 - SVG Diagrams (inline)
 - Mermaid Diagrams (inline - now with Code toggle)
