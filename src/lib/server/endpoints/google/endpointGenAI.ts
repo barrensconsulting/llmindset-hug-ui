@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI, HarmBlockThreshold, HarmCategory } from "@google/generative-ai";
-import type { Content, Part, SafetySetting, TextPart } from "@google/generative-ai";
+import type { Content, Part, SafetySetting, TextPart, UsageMetadata } from "@google/generative-ai";
+import type { UsageInfo } from "$lib/types/Message";
 import { z } from "zod";
 import type { Message, MessageFile } from "$lib/types/Message";
 import type { TextGenerationStreamOutput } from "@huggingface/inference";
@@ -128,7 +129,8 @@ export function endpointGenAI(input: z.input<typeof endpointGenAIParametersSchem
 				yield output;
 			}
 
-			const output: TextGenerationStreamOutput = {
+			const usageMetadata: UsageMetadata | undefined = (await result.response)?.usageMetadata;
+			const output: TextGenerationStreamOutput & { usage?: UsageInfo } = {
 				token: {
 					id: tokenId++,
 					text: "",
@@ -137,8 +139,12 @@ export function endpointGenAI(input: z.input<typeof endpointGenAIParametersSchem
 				},
 				generated_text: generatedText,
 				details: null,
+				usage: {
+					input_tokens: usageMetadata?.promptTokenCount ?? 0,
+					output_tokens: usageMetadata?.candidatesTokenCount ?? 0,
+				},
 			};
-			yield output;
+			yield output satisfies TextGenerationStreamOutput & { usage?: UsageInfo };
 		})();
 	};
 }
