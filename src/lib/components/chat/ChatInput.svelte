@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { browser } from "$app/environment";
-	import { createEventDispatcher, onMount } from "svelte";
+	import { createEventDispatcher, onMount, tick } from "svelte";
 
 	import HoverTooltip from "$lib/components/HoverTooltip.svelte";
 	import IconInternet from "$lib/components/icons/IconInternet.svelte";
@@ -76,7 +76,7 @@
 		textareaElement.parentElement.style.height = `${newHeight}px`;
 	}
 
-	function handleKeydown(event: KeyboardEvent) {
+	async function handleKeydown(event: KeyboardEvent) {
 		if (event.key === "Enter" && !event.shiftKey && !isCompositionOn) {
 			event.preventDefault();
 			if (isVirtualKeyboard()) {
@@ -88,6 +88,8 @@
 			} else {
 				if (value.trim() !== "") {
 					dispatch("submit");
+					await tick();
+					adjustTextareaHeight();
 				}
 			}
 		}
@@ -142,7 +144,8 @@
 	</div>
 	{#if !assistant}
 		<div
-			class="-ml-0.5 flex flex-wrap items-center justify-start gap-2.5 px-3 pb-2.5 text-gray-500 dark:text-gray-400"
+			class="scrollbar-custom -ml-0.5 flex max-w-[calc(100%-40px)] flex-wrap items-center justify-start gap-2 px-3 pb-2.5 pt-0.5 text-gray-500
+			dark:text-gray-400 max-md:flex-nowrap max-md:overflow-x-auto sm:gap-2.5"
 		>
 			<HoverTooltip
 				label="Search the web"
@@ -212,20 +215,6 @@
 					</button>
 				</HoverTooltip>
 			{/if}
-			{#if modelHasTools}
-				{#each extraTools as tool}
-					<button
-						class="active-tool base-tool"
-						disabled={loading}
-						on:click|preventDefault={async () => {
-							goto(`${base}/tools/${tool._id}`);
-						}}
-					>
-						<ToolLogo icon={tool.icon} color={tool.color} size="xs" />
-						{tool.displayName}
-					</button>
-				{/each}
-			{/if}
 			{#if modelIsMultimodal || modelHasTools}
 				{@const mimeTypesString = mimeTypes
 					.map((m) => {
@@ -239,17 +228,16 @@
 					.join(", ")}
 				<form class="flex items-center">
 					<HoverTooltip
-						label={`Upload ${mimeTypesString} files`}
+						label={mimeTypesString.includes("*")
+							? "Upload any file"
+							: `Upload ${mimeTypesString} files`}
 						position="top"
 						TooltipClassNames="text-xs !text-left !w-auto whitespace-nowrap !py-1 !mb-0 max-sm:hidden"
 					>
-						<button
-							class="base-tool relative"
-							class:active-tool={documentParserIsOn}
-							disabled={loading}
-						>
+						<label class="base-tool relative" class:active-tool={documentParserIsOn}>
 							<input
-								class="absolute w-full cursor-pointer opacity-0"
+								disabled={loading}
+								class="absolute hidden size-0"
 								aria-label="Upload file"
 								type="file"
 								on:change={onFileChange}
@@ -259,9 +247,23 @@
 							{#if documentParserIsOn}
 								Document Parser
 							{/if}
-						</button>
+						</label>
 					</HoverTooltip>
 				</form>
+			{/if}
+			{#if modelHasTools}
+				{#each extraTools as tool}
+					<button
+						class="active-tool base-tool"
+						disabled={loading}
+						on:click|preventDefault={async () => {
+							goto(`${base}/tools/${tool._id}`);
+						}}
+					>
+						<ToolLogo icon={tool.icon} color={tool.color} size="xs" />
+						{tool.displayName}
+					</button>
+				{/each}
 			{/if}
 			{#if modelHasTools}
 				<HoverTooltip
@@ -292,7 +294,7 @@
 	}
 
 	.base-tool {
-		@apply flex h-[1.6rem] items-center gap-[.2rem] whitespace-nowrap text-xs outline-none transition-all hover:text-purple-600 focus:outline-none active:outline-none dark:hover:text-gray-300;
+		@apply flex h-[1.6rem] items-center gap-[.2rem] whitespace-nowrap text-xs outline-none transition-all focus:outline-none active:outline-none dark:hover:text-gray-300 sm:hover:text-purple-600;
 	}
 
 	.active-tool {

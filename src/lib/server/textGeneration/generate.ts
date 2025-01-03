@@ -1,4 +1,4 @@
-import type { Tool, ToolResult } from "$lib/types/Tool";
+import type { Tool, ToolResult, Tool } from "$lib/types/Tool";
 import {
 	MessageReasoningUpdateType,
 	MessageUpdateType,

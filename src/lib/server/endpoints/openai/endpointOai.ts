@@ -178,6 +178,7 @@ export async function endpointOai(
 				body: { ...body, ...extraBody },
 				headers: {
 					"ChatUI-Conversation-ID": conversationId?.toString() ?? "",
+					"X-use-cache": "false",
 				},
 			});
 
@@ -279,6 +280,7 @@ export async function endpointOai(
 					body: { ...body, ...extraBody },
 					headers: {
 						"ChatUI-Conversation-ID": conversationId?.toString() ?? "",
+						"X-use-cache": "false",
 					},
 				}
 			);
