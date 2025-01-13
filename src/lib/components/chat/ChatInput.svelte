@@ -312,7 +312,6 @@
 </div>
 
 <style lang="postcss">
-	pre,
 	textarea {
 		font-family: inherit;
 		box-sizing: border-box;
