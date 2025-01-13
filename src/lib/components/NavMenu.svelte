@@ -10,6 +10,9 @@
 	import type { ConvSidebar } from "$lib/types/ConvSidebar";
 	import type { Model } from "$lib/types/Model";
 	import { page } from "$app/stores";
+	import InfiniteScroll from "./InfiniteScroll.svelte";
+	import type { Conversation } from "$lib/types/Conversation";
+	import { CONV_NUM_PER_PAGE } from "$lib/constants/pagination";
 	import { writable } from "svelte/store";
 	import AssistantFilterButton from "./AssistantFilterButton.svelte";
 	import CarbonFilter from "~icons/carbon/filter";
@@ -17,6 +20,10 @@
 	export let conversations: ConvSidebar[];
 	export let canLogin: boolean;
 	export let user: LayoutData["user"];
+
+	export let p = 0;
+
+	let hasMore = true;
 
 	let showFilters = false;
 
@@ -87,6 +94,34 @@
 	} as const;
 
 	const nModels: number = $page.data.models.filter((el: Model) => !el.unlisted).length;
+
+	async function handleVisible() {
+		p++;
+		const newConvs = await fetch(`${base}/api/conversations?p=${p}`)
+			.then((res) => res.json())
+			.then((convs) =>
+				convs.map(
+					(conv: Pick<Conversation, "_id" | "title" | "updatedAt" | "model" | "assistantId">) => ({
+						...conv,
+						updatedAt: new Date(conv.updatedAt),
+					})
+				)
+			)
+			.catch(() => []);
+
+		if (newConvs.length === 0) {
+			hasMore = false;
+		}
+
+		conversations = [...conversations, ...newConvs];
+	}
+
+	$: if (conversations.length <= CONV_NUM_PER_PAGE) {
+		// reset p to 0 if there's only one page of content
+		// that would be caused by a data loading invalidation
+		p = 0;
+		hasMore = true;
+	}
 
 	const selectedAssistant = writable<string>("");
 </script>
@@ -177,6 +212,9 @@
 				{/if}
 			{/each}
 		</div>
+		{#if hasMore}
+			<InfiniteScroll on:visible={handleVisible} />
+		{/if}
 	{/await}
 </div>
 <div
