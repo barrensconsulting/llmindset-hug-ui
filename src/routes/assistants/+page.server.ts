@@ -9,6 +9,9 @@ import type { Filter } from "mongodb";
 import { ReviewStatus } from "$lib/types/Review";
 const NUM_PER_PAGE = 24;
 
+// Hugging Face Chat uses 5 for this value
+const VISIBLE_COUNT = 1;
+
 export const load = async ({ url, locals }) => {
 	if (!env.ENABLE_ASSISTANTS) {
 		redirect(302, `${base}/`);
@@ -49,12 +52,12 @@ export const load = async ({ url, locals }) => {
 	const noSpecificSearch = !user && !query;
 	// fetch the top assistants sorted by user count from biggest to smallest.
 	// filter by model too if modelId is provided or query if query is provided
-	// only show assistants that have been used by more than 5 users if no specific search is made
+	// only show assistants that have been used by more than VISIBLE_COUNT users if no specific search is made
 	const filter: Filter<Assistant> = {
 		...(modelId && { modelId }),
 		...(user && { createdById: user._id }),
 		...(query && { searchTokens: { $all: generateQueryTokens(query) } }),
-		...(noSpecificSearch && { userCount: { $gte: 5 } }),
+		...(noSpecificSearch && { userCount: { $gte: VISIBLE_COUNT } }),
 		...shouldBeFeatured,
 	};
 
