@@ -122,11 +122,6 @@ Do not use prefixes such as Response: or Answer: when answering to the user.`,
 						withUsage.usage.reasoning_tokens = endIndex - beginIndex;
 					}
 				}
-
-				if ("usage" in output && output.usage) {
-					// Update the usage with reasoning tokens
-					console.log("------------>" + JSON.stringify(output.usage, null, 2));
-				}
 			}
 			const outputWithUsage = output as OutputWithPossibleUsage;
 			yield {
