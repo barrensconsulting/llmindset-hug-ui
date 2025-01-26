@@ -117,18 +117,27 @@ Do not use prefixes such as Response: or Answer: when answering to the user.`,
 					// Remove the reasoning section (including tokens) from final answer
 					finalAnswer =
 						text.slice(0, beginIndex) + text.slice(endIndex + model.reasoning.endToken.length);
+					const withUsage = output as OutputWithPossibleUsage;
+					if (withUsage.usage) {
+						withUsage.usage.reasoning_tokens = endIndex - beginIndex;
+					}
 				}
-				const outputWithUsage = output as OutputWithPossibleUsage;
-				yield {
-					type: MessageUpdateType.FinalAnswer,
-					text: finalAnswer,
-					interrupted,
-					webSources: output.webSources,
-					...(outputWithUsage.usage && { usage: outputWithUsage.usage }),
-				} as MessageFinalAnswerUpdate;
 
-				continue;
+				if ("usage" in output && output.usage) {
+					// Update the usage with reasoning tokens
+					console.log("------------>" + JSON.stringify(output.usage, null, 2));
+				}
 			}
+			const outputWithUsage = output as OutputWithPossibleUsage;
+			yield {
+				type: MessageUpdateType.FinalAnswer,
+				text: finalAnswer,
+				interrupted,
+				webSources: output.webSources,
+				...(outputWithUsage.usage && { usage: outputWithUsage.usage }),
+			} as MessageFinalAnswerUpdate;
+
+			continue;
 		}
 
 		if (model.reasoning && model.reasoning.type === "tokens") {
