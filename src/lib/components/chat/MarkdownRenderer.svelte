@@ -168,9 +168,9 @@
 		},
 		extensions: [katexBlockExtension, katexInlineExtension],
 		renderer: {
-			html: (html) => escapeHTML(html),
 			link: (href, title, text) =>
 				`<a href="${href?.replace(/>$/, "")}" target="_blank" rel="noreferrer">${text}</a>`,
+			html: (html) => escapeHTML(html),
 		},
 		gfm: true,
 	});
@@ -193,9 +193,3 @@
 		{/await}
 	{/if}
 {/each}
-
-<style lang="postcss">
-	:global(.katex-display) {
-		overflow: auto hidden;
-	}
-</style>
