@@ -16,7 +16,6 @@
 	import CarbonPen from "~icons/carbon/pen";
 	import CarbonChevronLeft from "~icons/carbon/chevron-left";
 	import CarbonChevronRight from "~icons/carbon/chevron-right";
-	import type { Model } from "$lib/types/Model";
 	import UploadedFile from "./UploadedFile.svelte";
 	import OpenWebSearchResults from "../OpenWebSearchResults.svelte";
 	import {
@@ -39,7 +38,6 @@
 	import MarkdownRenderer from "./MarkdownRenderer.svelte";
 	import OpenReasoningResults from "./OpenReasoningResults.svelte";
 
-	export let model: Model;
 	export let id: Message["id"];
 	export let messages: Message[];
 	export let loading = false;
@@ -562,17 +560,15 @@
 							: ''}"
 					>
 						<div class="mx-auto flex flex-row flex-nowrap gap-2">
-							{#if downloadLink}
-								<a
-									class="rounded-lg border border-gray-100 bg-gray-100 p-1 text-xs text-gray-400 group-hover:block hover:text-gray-500 dark:border-gray-800 dark:bg-gray-800 dark:text-gray-400 dark:hover:text-gray-300 max-sm:!hidden md:hidden"
-									title="Download prompt and parameters"
-									type="button"
-									target="_blank"
-									href={downloadLink}
-								>
-									<CarbonDownload />
-								</a>
-							{/if}
+							<a
+								class="rounded-lg border border-gray-100 bg-gray-100 p-1 text-xs text-gray-400 group-hover:block hover:text-gray-500 dark:border-gray-800 dark:bg-gray-800 dark:text-gray-400 dark:hover:text-gray-300 max-sm:!hidden md:hidden"
+								title="Download prompt and parameters"
+								type="button"
+								target="_blank"
+								href={downloadLink}
+							>
+								<CarbonDownload />
+							</a>
 							<button
 								class="rounded-lg border border-gray-100 bg-gray-100 p-1 text-xs text-gray-400 group-hover:block hover:text-gray-500 dark:border-gray-800 dark:bg-gray-800 dark:text-gray-400 dark:hover:text-gray-300 max-sm:!hidden md:hidden"
 								title="Copy Message"
@@ -609,7 +605,6 @@
 			{messages}
 			{isAuthor}
 			{readOnly}
-			{model}
 			id={messageId}
 			on:retry
 			on:vote
