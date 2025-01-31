@@ -16,6 +16,7 @@
 	import CarbonPen from "~icons/carbon/pen";
 	import CarbonChevronLeft from "~icons/carbon/chevron-left";
 	import CarbonChevronRight from "~icons/carbon/chevron-right";
+	import type { Model } from "$lib/types/Model";
 	import UploadedFile from "./UploadedFile.svelte";
 	import OpenWebSearchResults from "../OpenWebSearchResults.svelte";
 	import {
@@ -38,6 +39,7 @@
 	import MarkdownRenderer from "./MarkdownRenderer.svelte";
 	import OpenReasoningResults from "./OpenReasoningResults.svelte";
 
+	export let model: Model;
 	export let id: Message["id"];
 	export let messages: Message[];
 	export let loading = false;
@@ -605,6 +607,7 @@
 			{messages}
 			{isAuthor}
 			{readOnly}
+			{model}
 			id={messageId}
 			on:retry
 			on:vote

@@ -290,6 +290,7 @@
 						id={messages[0].id}
 						isAuthor={!shared}
 						readOnly={isReadOnly}
+						model={currentModel}
 						on:retry
 						on:vote
 						on:continue
@@ -312,6 +313,7 @@
 					id={"0-0-0-0-0"}
 					isAuthor={!shared}
 					readOnly={isReadOnly}
+					model={currentModel}
 				/>
 			{:else if !assistant}
 				<ChatIntroduction
