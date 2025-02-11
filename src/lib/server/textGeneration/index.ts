@@ -69,7 +69,7 @@ async function* textGenerationWithoutTitle(
 
 	let preprompt = conv.preprompt;
 	if (assistantHasDynamicPrompt(assistant) && preprompt) {
-		preprompt = await processPreprompt(preprompt);
+		preprompt = await processPreprompt(preprompt, messages.at(-1)?.content);
 		if (messages[0].from === "system") messages[0].content = preprompt;
 	}
 
@@ -84,6 +84,6 @@ async function* textGenerationWithoutTitle(
 	}
 
 	const processedMessages = await preprocessMessages(messages, webSearchResult, convId);
-	yield* generate({ ...ctx, messages: processedMessages }, toolResults, preprompt, tools);
+	yield* generate({ ...ctx, messages: processedMessages }, toolResults, preprompt);
 	done.abort();
 }

@@ -19,6 +19,8 @@
 	import titleUpdate from "$lib/stores/titleUpdate";
 	import DisclaimerModal from "$lib/components/DisclaimerModal.svelte";
 	import ExpandNavigation from "$lib/components/ExpandNavigation.svelte";
+	import { loginModalOpen } from "$lib/stores/loginModal";
+	import LoginModal from "$lib/components/LoginModal.svelte";
 
 	export let data;
 
@@ -143,7 +145,9 @@
 		}
 	});
 
-	$: mobileNavTitle = ["/models", "/assistants", "/privacy"].includes($page.route.id ?? "")
+	$: mobileNavTitle = ["/models", "/assistants", "/privacy", "/tools"].includes(
+		$page.route.id ?? ""
+	)
 		? ""
 		: data.conversations.find((conv) => conv.id === $page.params.id)?.title;
 
@@ -213,19 +217,27 @@
 	<DisclaimerModal on:close={() => ($settings.ethicsModalAccepted = true)} />
 {/if}
 
-<ExpandNavigation
-	isCollapsed={isNavCollapsed}
-	on:click={() => (isNavCollapsed = !isNavCollapsed)}
-	classNames="absolute inset-y-0 z-10 my-auto {!isNavCollapsed
-		? 'left-[290px]'
-		: 'left-0'} *:transition-transform"
-/>
+{#if $loginModalOpen}
+	<LoginModal
+		on:close={() => {
+			$loginModalOpen = false;
+		}}
+	/>
+{/if}
 
 <div
-	class="grid h-full w-screen grid-cols-1 grid-rows-[auto,1fr] overflow-hidden text-smd {!isNavCollapsed
+	class="fixed grid h-full w-screen grid-cols-1 grid-rows-[auto,1fr] overflow-hidden text-smd {!isNavCollapsed
 		? 'md:grid-cols-[290px,1fr]'
 		: 'md:grid-cols-[0px,1fr]'} transition-[300ms] [transition-property:grid-template-columns] dark:text-gray-300 md:grid-rows-[1fr]"
 >
+	<ExpandNavigation
+		isCollapsed={isNavCollapsed}
+		on:click={() => (isNavCollapsed = !isNavCollapsed)}
+		classNames="absolute inset-y-0 z-10 my-auto {!isNavCollapsed
+			? 'left-[290px]'
+			: 'left-0'} *:transition-transform"
+	/>
+
 	<MobileNav isOpen={isNavOpen} on:toggle={(ev) => (isNavOpen = ev.detail)} title={mobileNavTitle}>
 		<NavMenu
 			conversations={data.conversations}
@@ -237,7 +249,7 @@
 		/>
 	</MobileNav>
 	<nav
-		class=" grid max-h-screen grid-cols-1 grid-rows-[auto,1fr,auto] overflow-hidden *:w-[290px] max-md:hidden"
+		class="grid max-h-screen grid-cols-1 grid-rows-[auto,1fr,auto] overflow-hidden *:w-[290px] max-md:hidden"
 	>
 		<NavMenu
 			conversations={data.conversations}

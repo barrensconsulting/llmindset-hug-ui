@@ -12,8 +12,9 @@ import { toolFromConfigs } from "$lib/server/tools";
 import { MetricsServer } from "$lib/server/metrics";
 import type { ToolFront, ToolInputFile } from "$lib/types/Tool";
 import { ReviewStatus } from "$lib/types/Review";
+import { base } from "$app/paths";
 
-export const load: LayoutServerLoad = async ({ locals, depends }) => {
+export const load: LayoutServerLoad = async ({ locals, depends, fetch }) => {
 	depends(UrlDependency.ConversationList);
 
 	const settings = await collections.settings.findOne(authCondition(locals));
@@ -56,24 +57,17 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
 	const conversations =
 		nConversations === 0
 			? Promise.resolve([])
-			: collections.conversations
-					.find(authCondition(locals))
-					.sort({ updatedAt: -1 })
-					.project<
-						Pick<
-							Conversation,
-							"title" | "model" | "_id" | "updatedAt" | "createdAt" | "assistantId"
-						>
-					>({
-						title: 1,
-						model: 1,
-						_id: 1,
-						updatedAt: 1,
-						createdAt: 1,
-						assistantId: 1,
-					})
-					.limit(300)
-					.toArray();
+			: fetch(`${base}/api/conversations`)
+					.then((res) => res.json())
+					.then(
+						(
+							convs: Pick<Conversation, "_id" | "title" | "updatedAt" | "model" | "assistantId">[]
+						) =>
+							convs.map((conv) => ({
+								...conv,
+								updatedAt: new Date(conv.updatedAt),
+							}))
+					);
 
 	const userAssistants = settings?.assistants?.map((assistantId) => assistantId.toString()) ?? [];
 	const userAssistantsSet = new Set(userAssistants);
@@ -223,6 +217,7 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
 			datasetUrl: model.datasetUrl,
 			displayName: model.displayName,
 			description: model.description,
+			reasoning: !!model.reasoning,
 			logoUrl: model.logoUrl,
 			promptExamples: model.promptExamples,
 			parameters: model.parameters,
@@ -255,6 +250,8 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
 							toolUseDuration.find(
 								(el) => el.labels.tool === tool._id.toString() && el.labels.quantile === 0.9
 							)?.value ?? 15_000,
+						color: tool.color,
+						icon: tool.icon,
 					} satisfies ToolFront)
 			),
 		communityToolCount: await collections.tools.countDocuments({

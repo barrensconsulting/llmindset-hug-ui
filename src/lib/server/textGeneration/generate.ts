@@ -10,6 +10,7 @@ import type { TextGenerationContext } from "./types";
 import type { EndpointMessage } from "../endpoints/endpoints";
 import { generateFromDefaultEndpoint } from "../generateFromDefaultEndpoint";
 import { generateSummaryOfReasoning } from "./reasoning";
+import { logger } from "../logger";
 import type { UsageInfo } from "$lib/types/Message";
 import type { TextGenerationStreamOutput } from "@huggingface/inference";
 
@@ -77,30 +78,50 @@ export async function* generate(
 					subtype: MessageReasoningUpdateType.Status,
 					status: "Summarizing reasoning...",
 				};
-				const summary = yield* generateFromDefaultEndpoint({
-					messages: [
-						{
-							from: "user",
-							content: `Question: ${
-								messages[messages.length - 1].content
-							}\n\nReasoning: ${reasoningBuffer}`,
-						},
-					],
-					preprompt: `Your task is to summarize concisely all your reasoning steps and then give the final answer. Keep it short, one short paragraph at most. If the reasoning steps explicitly include a code solution, make sure to include it in your answer.
+				try {
+					const summary = yield* generateFromDefaultEndpoint({
+						messages: [
+							{
+								from: "user",
+								content: `Question: ${
+									messages[messages.length - 1].content
+								}\n\nReasoning: ${reasoningBuffer}`,
+							},
+						],
+						preprompt: `Your task is to summarize concisely all your reasoning steps and then give the final answer. Keep it short, one short paragraph at most. If the reasoning steps explicitly include a code solution, make sure to include it in your answer.
 
 If the user is just having a casual conversation that doesn't require explanations, answer directly without explaining your steps, otherwise make sure to summarize step by step, make sure to skip dead-ends in your reasoning and removing excess detail.
 
 Do not use prefixes such as Response: or Answer: when answering to the user.`,
-					generateSettings: {
-						max_new_tokens: 1024,
-					},
-				});
-				finalAnswer = summary;
-				yield {
-					type: MessageUpdateType.Reasoning,
-					subtype: MessageReasoningUpdateType.Status,
-					status: `Done in ${Math.round((new Date().getTime() - startTime.getTime()) / 1000)}s.`,
-				};
+						generateSettings: {
+							max_new_tokens: 1024,
+						},
+					});
+					finalAnswer = summary;
+					yield {
+						type: MessageUpdateType.Reasoning,
+						subtype: MessageReasoningUpdateType.Status,
+						status: `Done in ${Math.round((new Date().getTime() - startTime.getTime()) / 1000)}s.`,
+					};
+				} catch (e) {
+					finalAnswer = text;
+					logger.error(e);
+				}
+			} else if (model.reasoning && model.reasoning.type === "tokens") {
+				// make sure to remove the content of the reasoning buffer from
+				// the final answer to avoid duplication
+				const beginIndex = reasoningBuffer.indexOf(model.reasoning.beginToken);
+				const endIndex = reasoningBuffer.lastIndexOf(model.reasoning.endToken);
+
+				if (beginIndex !== -1 && endIndex !== -1) {
+					// Remove the reasoning section (including tokens) from final answer
+					finalAnswer =
+						text.slice(0, beginIndex) + text.slice(endIndex + model.reasoning.endToken.length);
+					const withUsage = output as OutputWithPossibleUsage;
+					if (withUsage.usage) {
+						withUsage.usage.reasoning_tokens = endIndex - beginIndex;
+					}
+				}
 			}
 			const outputWithUsage = output as OutputWithPossibleUsage;
 			yield {
@@ -123,6 +144,7 @@ Do not use prefixes such as Response: or Answer: when answering to the user.`,
 					subtype: MessageReasoningUpdateType.Status,
 					status: "Started thinking...",
 				};
+				continue;
 			} else if (output.token.text === model.reasoning.endToken) {
 				reasoning = false;
 				reasoningBuffer += output.token.text;
@@ -131,6 +153,7 @@ Do not use prefixes such as Response: or Answer: when answering to the user.`,
 					subtype: MessageReasoningUpdateType.Status,
 					status: `Done in ${Math.round((new Date().getTime() - startTime.getTime()) / 1000)}s.`,
 				};
+				continue;
 			}
 		}
 		// ignore special tokens
@@ -153,9 +176,13 @@ Do not use prefixes such as Response: or Answer: when answering to the user.`,
 			// create a new status every 5 seconds
 			if (new Date().getTime() - lastReasoningUpdate.getTime() > 4000) {
 				lastReasoningUpdate = new Date();
-				generateSummaryOfReasoning(reasoningBuffer).then((summary) => {
-					status = summary;
-				});
+				try {
+					generateSummaryOfReasoning(reasoningBuffer).then((summary) => {
+						status = summary;
+					});
+				} catch (e) {
+					logger.error(e);
+				}
 			}
 			yield {
 				type: MessageUpdateType.Reasoning,

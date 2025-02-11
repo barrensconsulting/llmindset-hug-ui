@@ -96,9 +96,9 @@
 		: false;
 
 	let tools = assistant?.tools ?? [];
-	const regex = /{{\s?url=(.+?)\s?}}/g;
+	const regex = /{{\s?(get|post|url|today)(=.*?)?\s?}}/g;
 
-	$: templateVariables = [...systemPrompt.matchAll(regex)].map((match) => match[1]);
+	$: templateVariables = [...systemPrompt.matchAll(regex)];
 	$: selectedModel = models.find((m) => m.id === modelId);
 </script>
 
@@ -347,7 +347,7 @@
 								name="repetition_penalty"
 								min="0.1"
 								max="2"
-								step="0.1"
+								step="0.05"
 								class="w-20 rounded-lg border-2 border-gray-200 bg-gray-100 px-2 py-1"
 								placeholder={selectedModel?.parameters?.repetition_penalty?.toString() ?? "1.0"}
 								value={assistant?.generateSettings?.repetition_penalty ?? ""}
@@ -542,12 +542,18 @@
 						<div
 							class="invisible absolute right-0 top-6 z-10 rounded-lg border bg-white p-2 text-xs shadow-lg peer-focus:visible hover:visible sm:w-96"
 						>
-							Will perform a GET request and inject the response into the prompt. Works better with
-							plain text, csv or json content.
+							Will perform a GET or POST request and inject the response into the prompt. Works
+							better with plain text, csv or json content.
 							{#each templateVariables as match}
-								<a href={match} target="_blank" class="text-gray-500 underline decoration-gray-300"
-									>{match}</a
-								>
+								<div>
+									<a
+										href={match[1].toLowerCase() === "get" ? match[2] : "#"}
+										target={match[1].toLowerCase() === "get" ? "_blank" : ""}
+										class="text-gray-500 underline decoration-gray-300"
+									>
+										{match[1].toUpperCase()}: {match[2]}
+									</a>
+								</div>
 							{/each}
 						</div>
 					</div>
@@ -557,9 +563,10 @@
 				<input type="checkbox" name="dynamicPrompt" bind:checked={dynamicPrompt} />
 				Dynamic Prompt
 				<p class="mb-2 text-xs font-normal text-gray-500">
-					Allow the use of template variables {"{{url=https://example.com/path}}"}
+					Allow the use of template variables {"{{get=https://example.com/path}}"}
 					to insert dynamic content into your prompt by making GET requests to specified URLs on each
-					inference.
+					inference. You can also send the user's message as the body of a POST request, using {"{{post=https://example.com/path}}"}.
+					Use {"{{today}}"} to include the current date.
 				</p>
 			</label>
 
