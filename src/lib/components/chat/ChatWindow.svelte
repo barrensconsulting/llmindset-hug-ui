@@ -1,4 +1,7 @@
 <script lang="ts">
+	import { run, createBubbler } from "svelte/legacy";
+
+	const bubble = createBubbler();
 	import type { Message, MessageFile } from "$lib/types/Message";
 	import { createEventDispatcher, onDestroy, tick } from "svelte";
 
@@ -11,7 +14,7 @@
 	import ChatInput from "./ChatInput.svelte";
 	import StopGeneratingBtn from "../StopGeneratingBtn.svelte";
 	import type { Model } from "$lib/types/Model";
-	import { page } from "$app/stores";
+	import { page } from "$app/state";
 	import FileDropzone from "./FileDropzone.svelte";
 	import RetryBtn from "../RetryBtn.svelte";
 	import file2base64 from "$lib/utils/file2base64";
@@ -26,7 +29,6 @@
 	import { snapScrollToBottom } from "$lib/actions/snapScrollToBottom";
 	import SystemPromptModal from "../SystemPromptModal.svelte";
 	import ChatIntroduction from "./ChatIntroduction.svelte";
-	import { useConvTreeStore } from "$lib/stores/convTree";
 	import UploadedFile from "./UploadedFile.svelte";
 	import { useSettingsStore } from "$lib/stores/settings";
 	import ModelSwitch from "./ModelSwitch.svelte";
@@ -36,24 +38,43 @@
 	import type { ToolFront } from "$lib/types/Tool";
 	import { loginModalOpen } from "$lib/stores/loginModal";
 
-	export let messages: Message[] = [];
-	export let loading = false;
-	export let pending = false;
+	interface Props {
+		messages?: Message[];
+		messagesAlternatives?: Message["id"][][];
+		loading?: boolean;
+		pending?: boolean;
+		shared?: boolean;
+		currentModel: Model;
+		models: Model[];
+		assistant?: Assistant | undefined;
+		preprompt?: string | undefined;
+		files?: File[];
+	}
 
-	export let shared = false;
-	export let currentModel: Model;
-	export let models: Model[];
-	export let assistant: Assistant | undefined = undefined;
-	export let preprompt: string | undefined = undefined;
-	export let files: File[] = [];
+	let {
+		messages = [],
+		messagesAlternatives = [],
+		loading = false,
+		pending = false,
+		shared = false,
+		currentModel,
+		models,
+		assistant = undefined,
+		preprompt = undefined,
+		files = $bindable([]),
+	}: Props = $props();
 
-	$: isReadOnly = !models.some((model) => model.id === currentModel.id);
+	let isReadOnly = $derived(!models.some((model) => model.id === currentModel.id));
 
-	let message: string;
+	let message: string = $state("");
 	let timeout: ReturnType<typeof setTimeout>;
-	let isSharedRecently = false;
-	$: pastedLongContent = false;
-	$: $page.params.id && (isSharedRecently = false);
+	let isSharedRecently = $state(false);
+	let editMsdgId: Message["id"] | null = $state(null);
+	let pastedLongContent = $state(false);
+
+	run(() => {
+		page.params.id && (isSharedRecently = false);
+	});
 
 	const dispatch = createEventDispatcher<{
 		message: string;
@@ -71,7 +92,7 @@
 
 	let lastTarget: EventTarget | null = null;
 
-	let onDrag = false;
+	let onDrag = $state(false);
 
 	const onDragEnter = (e: DragEvent) => {
 		lastTarget = e.target;
@@ -121,66 +142,23 @@
 		}
 	};
 
-	const convTreeStore = useConvTreeStore();
-
-	const updateCurrentIndex = () => {
-		const url = new URL($page.url);
-		let leafId = url.searchParams.get("leafId");
-
-		// Ensure the function is only run in the browser.
-		if (!browser) return;
-
-		if (leafId) {
-			// Remove the 'leafId' from the URL to clean up after retrieving it.
-			url.searchParams.delete("leafId");
-			history.replaceState(null, "", url.toString());
-		} else {
-			// Retrieve the 'leafId' from localStorage if it's not in the URL.
-			leafId = localStorage.getItem("leafId");
-		}
-
-		// If a 'leafId' exists, find the corresponding message and update indices.
-		if (leafId) {
-			let leafMessage = messages.find((m) => m.id == leafId);
-			if (!leafMessage?.ancestors) return; // Exit if the message has no ancestors.
-
-			let ancestors = leafMessage.ancestors;
-
-			// Loop through all ancestors to update the current child index.
-			for (let i = 0; i < ancestors.length; i++) {
-				let curMessage = messages.find((m) => m.id == ancestors[i]);
-				if (curMessage?.children) {
-					for (let j = 0; j < curMessage.children.length; j++) {
-						// Check if the current message's child matches the next ancestor
-						// or the leaf itself, and update the currentChildIndex accordingly.
-						if (i + 1 < ancestors.length) {
-							if (curMessage.children[j] == ancestors[i + 1]) {
-								curMessage.currentChildIndex = j;
-								break;
-							}
-						} else {
-							if (curMessage.children[j] == leafId) {
-								curMessage.currentChildIndex = j;
-								break;
-							}
-						}
-					}
-				}
-			}
-		}
-	};
-
-	updateCurrentIndex();
-
-	$: lastMessage = browser && (messages.find((m) => m.id == $convTreeStore.leaf) as Message);
-	$: lastIsError =
+	let lastMessage = $derived(browser && (messages.at(-1) as Message));
+	let lastIsError = $derived(
 		lastMessage &&
-		!loading &&
-		(lastMessage.from === "user" ||
-			lastMessage.updates?.findIndex((u) => u.type === "status" && u.status === "error") !== -1);
+			!loading &&
+			(lastMessage.from === "user" ||
+				lastMessage.updates?.findIndex((u) => u.type === "status" && u.status === "error") !== -1)
+	);
 
-	$: sources = files?.map<Promise<MessageFile>>((file) =>
-		file2base64(file).then((value) => ({ type: "base64", value, mime: file.type, name: file.name }))
+	let sources = $derived(
+		files?.map<Promise<MessageFile>>((file) =>
+			file2base64(file).then((value) => ({
+				type: "base64",
+				value,
+				mime: file.type,
+				name: file.name,
+			}))
+		)
 	);
 
 	function onShare() {
@@ -204,47 +182,60 @@
 		}
 	});
 
-	let chatContainer: HTMLElement;
+	let chatContainer: HTMLElement | undefined = $state();
 
 	async function scrollToBottom() {
 		await tick();
+		if (!chatContainer) return;
 		chatContainer.scrollTop = chatContainer.scrollHeight;
 	}
 
 	// If last message is from user, scroll to bottom
-	$: if (lastMessage && lastMessage.from === "user") {
-		scrollToBottom();
-	}
+	run(() => {
+		if (lastMessage && lastMessage.from === "user") {
+			scrollToBottom();
+		}
+	});
 
 	const settings = useSettingsStore();
 
-	$: mimeTypesFromActiveTools = $page.data.tools
-		.filter((tool: ToolFront) => {
-			if ($page.data?.assistant) {
-				return $page.data.assistant.tools?.includes(tool._id);
-			}
-			if (currentModel.tools) {
-				return $settings?.tools?.includes(tool._id) ?? tool.isOnByDefault;
-			}
-			return false;
-		})
-		.flatMap((tool: ToolFront) => tool.mimeTypes ?? []);
-
-	$: activeMimeTypes = Array.from(
-		new Set([
-			...mimeTypesFromActiveTools, // fetch mime types from active tools either from tool settings or active assistant
-			...(currentModel.tools && !$page.data.assistant ? ["application/pdf"] : []), // if its a tool model, we can always enable document parser so we always accept pdfs
-			...(currentModel.multimodal ? currentModel.multimodalAcceptedMimetypes ?? ["image/*"] : []), // if its a multimodal model, we always accept images
-		])
+	let mimeTypesFromActiveTools = $derived(
+		page.data.tools
+			.filter((tool: ToolFront) => {
+				if (assistant) {
+					return assistant.tools?.includes(tool._id);
+				}
+				if (currentModel.tools) {
+					return $settings?.tools?.includes(tool._id) ?? tool.isOnByDefault;
+				}
+				return false;
+			})
+			.flatMap((tool: ToolFront) => tool.mimeTypes ?? [])
 	);
-	$: isFileUploadEnabled = activeMimeTypes.length > 0;
+
+	let activeMimeTypes = $derived(
+		Array.from(
+			new Set([
+				...mimeTypesFromActiveTools, // fetch mime types from active tools either from tool settings or active assistant
+				...(currentModel.tools && !assistant ? ["application/pdf"] : []), // if its a tool model, we can always enable document parser so we always accept pdfs
+				...(currentModel.multimodal ? currentModel.multimodalAcceptedMimetypes ?? ["image/*"] : []), // if its a multimodal model, we always accept images
+			])
+		)
+	);
+	let isFileUploadEnabled = $derived(activeMimeTypes.length > 0);
 </script>
 
 <svelte:window
-	on:dragenter={onDragEnter}
-	on:dragleave={onDragLeave}
-	on:dragover|preventDefault
-	on:drop|preventDefault={() => (onDrag = false)}
+	ondragenter={onDragEnter}
+	ondragleave={onDragLeave}
+	ondragover={(e) => {
+		e.preventDefault();
+		bubble("dragover");
+	}}
+	ondrop={(e) => {
+		e.preventDefault();
+		onDrag = false;
+	}}
 />
 
 <div class="relative min-h-0 min-w-0">
@@ -256,15 +247,14 @@
 		<div
 			class="mx-auto flex h-full max-w-3xl flex-col gap-6 px-5 pt-6 sm:gap-8 xl:max-w-4xl xl:pt-10"
 		>
-			{#if $page.data?.assistant && !!messages.length}
+			{#if assistant && !!messages.length}
 				<a
 					class="mx-auto flex items-center gap-1.5 rounded-full border border-gray-100 bg-gray-50 py-1 pl-1 pr-3 text-sm text-gray-800 hover:bg-gray-100 dark:border-gray-800 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-					href="{base}/settings/assistants/{$page.data.assistant._id}"
+					href="{base}/settings/assistants/{assistant._id}"
 				>
-					{#if $page.data?.assistant.avatar}
+					{#if assistant.avatar}
 						<img
-							src="{base}/settings/assistants/{$page.data?.assistant._id.toString()}/avatar.jpg?hash=${$page
-								.data.assistant.avatar}"
+							src="{base}/settings/assistants/{assistant._id.toString()}/avatar.jpg?hash=${assistant.avatar}"
 							alt="Avatar"
 							class="size-5 rounded-full object-cover"
 						/>
@@ -272,11 +262,11 @@
 						<div
 							class="flex size-6 items-center justify-center rounded-full bg-gray-300 font-bold uppercase text-gray-500"
 						>
-							{$page.data?.assistant.name[0]}
+							{assistant.name[0]}
 						</div>
 					{/if}
 
-					{$page.data.assistant.name}
+					{assistant.name}
 				</a>
 			{:else if preprompt && preprompt != currentModel.preprompt}
 				<SystemPromptModal preprompt={preprompt ?? ""} />
@@ -284,17 +274,22 @@
 
 			{#if messages.length > 0}
 				<div class="flex h-max flex-col gap-8 pb-52">
-					<ChatMessage
-						{loading}
-						{messages}
-						id={messages[0].id}
-						isAuthor={!shared}
-						readOnly={isReadOnly}
-						model={currentModel}
-						on:retry
-						on:vote
-						on:continue
-					/>
+					{#each messages as message, idx (message.id)}
+						<ChatMessage
+							{loading}
+							{message}
+							alternatives={messagesAlternatives.find((a) => a.includes(message.id)) ?? []}
+							isAuthor={!shared}
+							readOnly={isReadOnly}
+							model={currentModel}
+							isLast={idx === messages.length - 1}
+							bind:editMsdgId
+							on:retry
+							on:vote
+							on:continue
+							on:showAlternateMsg
+						/>
+					{/each}
 					{#if isReadOnly}
 						<ModelSwitch {models} {currentModel} />
 					{/if}
@@ -302,15 +297,12 @@
 			{:else if pending}
 				<ChatMessage
 					loading={true}
-					messages={[
-						{
-							id: "0-0-0-0-0",
-							content: "",
-							from: "assistant",
-							children: [],
-						},
-					]}
-					id={"0-0-0-0-0"}
+					message={{
+						id: "0-0-0-0-0",
+						content: "",
+						from: "assistant",
+						children: [],
+					}}
 					isAuthor={!shared}
 					readOnly={isReadOnly}
 					model={currentModel}
@@ -319,7 +311,7 @@
 				<ChatIntroduction
 					{currentModel}
 					on:message={(ev) => {
-						if ($page.data.loginRequired) {
+						if (page.data.loginRequired) {
 							ev.preventDefault();
 							$loginModalOpen = true;
 						} else {
@@ -332,7 +324,7 @@
 					{models}
 					{assistant}
 					on:message={(ev) => {
-						if ($page.data.loginRequired) {
+						if (page.data.loginRequired) {
 							ev.preventDefault();
 							$loginModalOpen = true;
 						} else {
@@ -377,11 +369,11 @@
 		<div class="w-full">
 			<div class="flex w-full *:mb-3">
 				{#if loading}
-					<StopGeneratingBtn classNames="ml-auto" on:click={() => dispatch("stop")} />
+					<StopGeneratingBtn classNames="ml-auto" onClick={() => dispatch("stop")} />
 				{:else if lastIsError}
 					<RetryBtn
 						classNames="ml-auto"
-						on:click={() => {
+						onClick={() => {
 							if (lastMessage && lastMessage.ancestors) {
 								dispatch("retry", {
 									id: lastMessage.id,
@@ -392,7 +384,7 @@
 				{:else if messages && lastMessage && lastMessage.interrupted && !isReadOnly}
 					<div class="ml-auto gap-2">
 						<ContinueBtn
-							on:click={() => {
+							onClick={() => {
 								if (lastMessage && lastMessage.ancestors) {
 									dispatch("continue", {
 										id: lastMessage?.id,
@@ -406,7 +398,10 @@
 			<form
 				tabindex="-1"
 				aria-label={isFileUploadEnabled ? "file dropzone" : undefined}
-				on:submit|preventDefault={handleSubmit}
+				onsubmit={(e) => {
+					e.preventDefault();
+					handleSubmit();
+				}}
 				class="relative flex w-full max-w-4xl flex-1 items-center rounded-xl border bg-gray-100 dark:border-gray-600 dark:bg-gray-700
             {isReadOnly ? 'opacity-30' : ''}"
 			>
@@ -428,13 +423,7 @@
 								bind:files
 								mimeTypes={activeMimeTypes}
 								on:submit={handleSubmit}
-								on:beforeinput={(ev) => {
-									if ($page.data.loginRequired) {
-										ev.preventDefault();
-										$loginModalOpen = true;
-									}
-								}}
-								on:paste={onPaste}
+								{onPaste}
 								disabled={isReadOnly || lastIsError}
 								modelHasTools={currentModel.tools}
 								modelIsMultimodal={currentModel.multimodal}
@@ -514,7 +503,7 @@
 						class="flex flex-none items-center hover:text-gray-400 max-sm:rounded-lg max-sm:bg-gray-50 max-sm:px-2.5 dark:max-sm:bg-gray-800"
 						type="button"
 						class:hover:underline={!isSharedRecently}
-						on:click={onShare}
+						onclick={onShare}
 						disabled={isSharedRecently}
 					>
 						{#if isSharedRecently}

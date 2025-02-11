@@ -12,14 +12,18 @@
 	import ZoomOut from "~icons/carbon/ZoomOut";
 	import ZoomFit from "~icons/carbon/ZoomFit";
 
-	export let code = "";
-	export let lang = "";
-	export let loading = false;
+	interface Props {
+		code?: string;
+		lang?: string;
+		loading: boolean;
+	}
 
-	let highlightedCode = "";
+	let { code = "", lang = "", loading = false }: Props = $props();
+
 	let mermaidId = `mermaid-${Math.random().toString(36).slice(2, 9)}`;
-	let renderPromise: Promise<RenderResult | null> | null = null;
-	$: highlightedCode = hljs.highlightAuto(code, hljs.getLanguage(lang)?.aliases).value;
+
+	let renderPromise: Promise<RenderResult | null> | null = $state(null);
+	let highlightedCode = $derived(hljs.highlightAuto(code, hljs.getLanguage(lang)?.aliases).value);
 	// Add type safety for mermaid error handling
 	type MermaidError = {
 		message: string;
@@ -30,10 +34,10 @@
 	let mermaidState: {
 		error: MermaidError | null;
 		rendered: boolean;
-	} = {
+	} = $state({
 		error: null,
 		rendered: false,
-	};
+	});
 
 	// SVG-specific types and configurations
 	type SvgState = {
@@ -43,24 +47,16 @@
 		height: number;
 	};
 
-	let svgContainer: HTMLDivElement;
+	let svgContainer: HTMLDivElement | null = $state(null);
 	//	let svgElement: SVGSVGElement | null = null;
-	let svgState: SvgState = {
+	let svgState: SvgState = $state({
 		error: null,
 		scale: 1,
 		width: 0,
 		height: 0,
-	};
+	});
 
 	function sanitizeSvg(svg: string): string {
-		/*		try {
-			return DOMPurify.sanitize(svg, svgConfig);
-		} catch (error) {
-			svgState.error = "Failed to sanitize SVG content";
-			return "";
-		}
-			*/
-		//return DOMPurify.sanitize(svg);
 		return svg;
 	}
 
@@ -101,20 +97,22 @@
 	}
 
 	// Add state for view toggle
-	let showCode = loading;
+	let showCode = $state(loading);
 
-	$: if (!loading && code) {
-		if (lang === "mermaid") {
-			showCode = false;
-			mermaidState.error = null;
-			mermaidState.rendered = false;
-			renderPromise = parseAndRender(code, mermaidId);
-		} else if (lang === "svg") {
-			showCode = false;
+	$effect(() => {
+		if (!loading && code) {
+			if (lang === "mermaid") {
+				showCode = false;
+				mermaidState.error = null;
+				mermaidState.rendered = false;
+				renderPromise = parseAndRender(code, mermaidId);
+			} else if (lang === "svg") {
+				showCode = false;
+			}
 		}
-	}
+	});
 
-	function handleSvgLoad(container: HTMLDivElement) {
+	function handleSvgLoad(container: HTMLDivElement | null) {
 		if (!container) return;
 
 		try {
@@ -184,8 +182,8 @@
 	aria-label={lang === "mermaid"
 		? "Mermaid diagram"
 		: lang === "svg"
-		? "SVG diagram"
-		: "Code block"}
+			? "SVG diagram"
+			: "Code block"}
 >
 	{#if lang === "mermaid" && mermaidState.rendered}
 		{#await renderPromise}
@@ -224,21 +222,21 @@
 						class="absolute bottom-2 right-2 flex gap-2 rounded-lg bg-white/80 p-1 dark:bg-black/80"
 					>
 						<button
-							on:click={zoomOut}
+							onclick={zoomOut}
 							class="rounded p-1 hover:bg-gray-200 dark:hover:bg-gray-800"
 							aria-label="Zoom out"
 						>
 							<ZoomOut size={16} />
 						</button>
 						<button
-							on:click={zoomFit}
+							onclick={zoomFit}
 							class="rounded p-1 hover:bg-gray-200 dark:hover:bg-gray-800"
 							aria-label="Fit to view"
 						>
 							<ZoomFit size={16} />
 						</button>
 						<button
-							on:click={zoomIn}
+							onclick={zoomIn}
 							class="rounded p-1 hover:bg-gray-200 dark:hover:bg-gray-800"
 							aria-label="Zoom in"
 						>
@@ -269,7 +267,7 @@
 				value={code}
 			/>
 			<button
-				on:click={() => (showCode = !showCode)}
+				onclick={() => (showCode = !showCode)}
 				class="btn flex items-center rounded-lg border border-gray-200 px-2 py-2 text-sm text-gray-200 shadow-sm transition-all hover:border-gray-300 active:shadow-inner dark:border-gray-700 dark:text-gray-700 dark:hover:border-gray-500"
 				aria-label={showCode ? "Show diagram" : "Show code"}
 			>
@@ -281,7 +279,7 @@
 			</button>
 		{:else if lang === "svg"}
 			<button
-				on:click={() => (showCode = !showCode)}
+				onclick={() => (showCode = !showCode)}
 				class="btn flex items-center rounded-lg border border-gray-200 px-2 py-2 text-sm text-gray-200 shadow-sm transition-all hover:border-gray-300 active:shadow-inner dark:border-gray-700 dark:text-gray-700 dark:hover:border-gray-500"
 				aria-label={showCode ? "Show SVG" : "Show code"}
 			>

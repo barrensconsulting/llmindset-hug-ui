@@ -13,19 +13,21 @@
 	import InfiniteScroll from "./InfiniteScroll.svelte";
 	import type { Conversation } from "$lib/types/Conversation";
 	import { CONV_NUM_PER_PAGE } from "$lib/constants/pagination";
-	import { writable } from "svelte/store";
 	import AssistantFilterButton from "./AssistantFilterButton.svelte";
 	import CarbonFilter from "~icons/carbon/filter";
 	import CarbonSubtractAlt from "~icons/carbon/subtract-alt";
-	export let conversations: ConvSidebar[];
-	export let canLogin: boolean;
-	export let user: LayoutData["user"];
+	interface Props {
+		conversations: ConvSidebar[];
+		canLogin: boolean;
+		user: LayoutData["user"];
+		p?: number;
+	}
 
-	export let p = 0;
+	let { conversations = $bindable(), canLogin, user, p = $bindable(0) }: Props = $props();
 
-	let hasMore = true;
+	let hasMore = $state(true);
 
-	let showFilters = false;
+	let showFilters = $state(false);
 
 	interface AssistantInfo {
 		id: string | undefined;
@@ -33,9 +35,10 @@
 		avatarUrl: string | undefined;
 	}
 
-	let uniqueAssistants: AssistantInfo[] = [];
+	let uniqueAssistants: AssistantInfo[] = $state([]);
+	let selectedAssistant: string = $state("");
 
-	$: {
+	$effect(() => {
 		uniqueAssistants = Array.from(
 			new Set(conversations.flatMap((conv) => conv.assistantId).filter(Boolean))
 		).map((id): AssistantInfo => {
@@ -46,7 +49,7 @@
 				avatarUrl: conv?.avatarUrl,
 			};
 		});
-	}
+	});
 
 	function toggleFilters() {
 		showFilters = !showFilters;
@@ -62,20 +65,24 @@
 		new Date().setMonth(new Date().getMonth() - 1),
 	];
 
-	function handleAssistantFilter(assistantId: string | undefined) {
+	function handleAssistantFilter(assistantId: string | undefined): void {
 		if (assistantId) {
-			selectedAssistant.update((current) => (current === assistantId ? "" : assistantId));
+			selectedAssistant = assistantId;
 		}
 	}
 
-	$: filteredConversations =
-		$selectedAssistant === ""
-			? conversations
-			: $selectedAssistant === "no-assistant"
-			? conversations.filter((conv) => !conv.assistantId)
-			: conversations.filter((conv) => conv.assistantId === $selectedAssistant);
+	let filteredConversations: ConvSidebar[] = $state([]);
+	//	filteredConversations = conversations;
+	$effect(() => {
+		filteredConversations =
+			selectedAssistant === ""
+				? conversations
+				: selectedAssistant === "no-assistant"
+					? conversations.filter((conv) => !conv.assistantId)
+					: conversations.filter((conv) => conv.assistantId === selectedAssistant);
+	});
 
-	$: groupedConversations = {
+	let groupedConversations = $derived({
 		today: filteredConversations.filter(({ updatedAt }) => updatedAt.getTime() > dateRanges[0]),
 		week: filteredConversations.filter(
 			({ updatedAt }) => updatedAt.getTime() > dateRanges[1] && updatedAt.getTime() < dateRanges[0]
@@ -84,7 +91,7 @@
 			({ updatedAt }) => updatedAt.getTime() > dateRanges[2] && updatedAt.getTime() < dateRanges[1]
 		),
 		older: filteredConversations.filter(({ updatedAt }) => updatedAt.getTime() < dateRanges[2]),
-	};
+	});
 
 	const titles: { [key: string]: string } = {
 		today: "Today",
@@ -116,13 +123,13 @@
 		conversations = [...conversations, ...newConvs];
 	}
 
-	$: if (conversations.length <= CONV_NUM_PER_PAGE) {
-		// reset p to 0 if there's only one page of content
-		// that would be caused by a data loading invalidation
-		p = 0;
-	}
-
-	const selectedAssistant = writable<string>("");
+	$effect(() => {
+		if (conversations.length <= CONV_NUM_PER_PAGE) {
+			// reset p to 0 if there's only one page of content
+			// that would be caused by a data loading invalidation
+			p = 0;
+		}
+	});
 </script>
 
 <div class="sticky top-0 z-10 bg-white dark:bg-gray-900">
@@ -136,17 +143,19 @@
 		</a>
 		<div class="flex gap-2">
 			<button
-				on:click={toggleFilters}
+				onclick={toggleFilters}
 				class="flex items-center rounded-lg border bg-white px-2 py-0.5 text-center shadow-sm hover:shadow-none dark:border-gray-600 dark:bg-gray-700 sm:text-smd"
 				><CarbonFilter class="h-4 w-4" /></button
 			>
-			<a
-				href={`${base}/`}
-				on:click={handleNewChatClick}
-				class="flex rounded-lg border bg-white px-2 py-0.5 text-center shadow-sm hover:shadow-none dark:border-gray-600 dark:bg-gray-700 sm:text-smd"
-			>
-				New Chat
-			</a>
+			{#if $page.url.pathname !== base + "/"}
+				<a
+					href={`${base}/`}
+					onclick={handleNewChatClick}
+					class="flex rounded-lg border bg-white px-2 py-0.5 text-center shadow-sm hover:shadow-none dark:border-gray-600 dark:bg-gray-700 sm:text-smd"
+				>
+					New Chat
+				</a>
+			{/if}
 		</div>
 	</div>
 
@@ -166,7 +175,7 @@
 						assistantName={assistant.name}
 						assistantId={assistant.id}
 						avatarUrl={assistant.avatarUrl}
-						isActive={$selectedAssistant === assistant.id}
+						isActive={selectedAssistant === assistant.id}
 						onClick={() => handleAssistantFilter(assistant.id)}
 					/>
 				{/each}
@@ -175,7 +184,7 @@
 				assistantId={"no-assistant"}
 				assistantName="No Assistant"
 				avatarUrl=""
-				isActive={$selectedAssistant === "no-assistant"}
+				isActive={selectedAssistant === "no-assistant"}
 				onClick={() => handleAssistantFilter("no-assistant")}
 			>
 				<CarbonSubtractAlt class="h-5 w-5" />
@@ -250,7 +259,7 @@
 		</form>
 	{/if}
 	<button
-		on:click={switchTheme}
+		onclick={switchTheme}
 		type="button"
 		class="flex h-9 flex-none items-center gap-1.5 rounded-lg pl-2.5 pr-2 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
 	>

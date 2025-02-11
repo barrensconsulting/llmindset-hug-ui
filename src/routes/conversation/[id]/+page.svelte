@@ -1,9 +1,11 @@
 <script lang="ts">
+	import { run } from "svelte/legacy";
+
 	import ChatWindow from "$lib/components/chat/ChatWindow.svelte";
 	import { pendingMessage } from "$lib/stores/pendingMessage";
 	import { isAborted } from "$lib/stores/isAborted";
 	import { onMount } from "svelte";
-	import { page } from "$app/stores";
+	import { page } from "$app/state";
 	import { goto, invalidateAll } from "$app/navigation";
 	import { base } from "$app/paths";
 	import { shareConversation } from "$lib/shareConversation";
@@ -21,20 +23,75 @@
 	import { addChildren } from "$lib/utils/tree/addChildren";
 	import { addSibling } from "$lib/utils/tree/addSibling";
 	import { fetchMessageUpdates } from "$lib/utils/messageUpdates";
-	import { createConvTreeStore } from "$lib/stores/convTree";
 	import type { v4 } from "uuid";
 	import { useSettingsStore } from "$lib/stores/settings.js";
+	import { browser } from "$app/environment";
 
-	export let data;
+	let { data = $bindable() } = $props();
 
-	$: ({ messages } = data);
+	let loading = $state(false);
+	let pending = $state(false);
+	let initialRun = true;
 
-	let loading = false;
-	let pending = false;
+	let files: File[] = $state([]);
 
-	$: activeModel = findCurrentModel([...data.models, ...data.oldModels], data.model);
+	let conversations = $state(data.conversations);
+	$effect(() => {
+		conversations = data.conversations;
+	});
 
-	let files: File[] = [];
+	function createMessagesPath(messages: Message[], msgId?: Message["id"]): Message[] {
+		if (initialRun) {
+			if (!msgId && page.url.searchParams.get("leafId")) {
+				msgId = page.url.searchParams.get("leafId") as string;
+				page.url.searchParams.delete("leafId");
+			}
+			if (!msgId && browser && localStorage.getItem("leafId")) {
+				msgId = localStorage.getItem("leafId") as string;
+			}
+			initialRun = false;
+		}
+
+		const msg = messages.find((msg) => msg.id === msgId) ?? messages.at(-1);
+		if (!msg) return [];
+		// ancestor path
+		const { ancestors } = msg;
+		const path = [];
+		if (ancestors?.length) {
+			for (const ancestorId of ancestors) {
+				const ancestor = messages.find((msg) => msg.id === ancestorId);
+				if (ancestor) {
+					path.push(ancestor);
+				}
+			}
+		}
+
+		// push the node itself in the middle
+		path.push(msg);
+
+		// children path
+		let childrenIds = msg.children;
+		while (childrenIds?.length) {
+			let lastChildId = childrenIds.at(-1);
+			const lastChild = messages.find((msg) => msg.id === lastChildId);
+			if (lastChild) {
+				path.push(lastChild);
+			}
+			childrenIds = lastChild?.children;
+		}
+
+		return path;
+	}
+
+	function createMessagesAlternatives(messages: Message[]): Message["id"][][] {
+		const alternatives = [];
+		for (const message of messages) {
+			if (message.children?.length) {
+				alternatives.push(message.children);
+			}
+		}
+		return alternatives;
+	}
 
 	async function convFromShared() {
 		try {
@@ -45,7 +102,7 @@
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify({
-					fromShare: $page.params.id,
+					fromShare: page.params.id,
 					model: data.model,
 				}),
 			});
@@ -68,7 +125,7 @@
 	// this function is used to send new message to the backends
 	async function writeMessage({
 		prompt,
-		messageId = $convTreeStore.leaf ?? undefined,
+		messageId = messagesPath.at(-1)?.id ?? undefined,
 		isRetry = false,
 		isContinue = false,
 	}: {
@@ -193,10 +250,10 @@
 			}
 
 			// disable websearch if assistant is present
-			const hasAssistant = !!$page.data.assistant;
+			const hasAssistant = !!page.data.assistant;
 			const messageUpdatesAbortController = new AbortController();
 			const messageUpdatesIterator = await fetchMessageUpdates(
-				$page.params.id,
+				page.params.id,
 				{
 					base,
 					inputs: prompt,
@@ -244,13 +301,13 @@
 				) {
 					$error = update.message ?? "An error has occurred";
 				} else if (update.type === MessageUpdateType.Title) {
-					const convInData = data.conversations.find(({ id }) => id === $page.params.id);
+					const convInData = conversations.find(({ id }) => id === page.params.id);
 					if (convInData) {
 						convInData.title = update.title;
 
 						$titleUpdate = {
 							title: update.title,
-							convId: $page.params.id,
+							convId: page.params.id,
 						};
 					}
 				} else if (update.type === MessageUpdateType.File) {
@@ -290,7 +347,7 @@
 	}
 
 	async function voteMessage(score: Message["score"], messageId: string) {
-		let conversationId = $page.params.id;
+		let conversationId = page.params.id;
 		let oldScore: Message["score"] | undefined;
 
 		// optimistic update to avoid waiting for the server
@@ -338,6 +395,9 @@
 	}
 
 	async function onRetry(event: CustomEvent<{ id: Message["id"]; content?: string }>) {
+		const lastMsgId = event.detail.id;
+		messagesPath = createMessagesPath(messages, lastMsgId);
+
 		if (!data.shared) {
 			await writeMessage({
 				prompt: event.detail.content,
@@ -361,6 +421,11 @@
 		}
 	}
 
+	async function onShowAlternateMsg(event: CustomEvent<{ id: Message["id"] }>) {
+		const msgId = event.detail.id;
+		messagesPath = createMessagesPath(messages, msgId);
+	}
+
 	async function onContinue(event: CustomEvent<{ id: Message["id"] }>) {
 		if (!data.shared) {
 			await writeMessage({ messageId: event.detail.id, isContinue: true });
@@ -380,17 +445,33 @@
 		}
 	}
 
-	$: $page.params.id, (($isAborted = true), (loading = false), ($convTreeStore.editing = null));
-	$: title = data.conversations.find((conv) => conv.id === $page.params.id)?.title ?? data.title;
-
-	const convTreeStore = createConvTreeStore();
 	const settings = useSettingsStore();
+	let messages = $state(data.messages);
+	$effect(() => {
+		messages = data.messages;
+	});
+
+	let activeModel = $derived(findCurrentModel([...data.models, ...data.oldModels], data.model));
+	// create a linear list of `messagesPath` from `messages` that is a tree of threaded messages
+	let messagesPath = $derived(createMessagesPath(messages));
+	let messagesAlternatives = $derived(createMessagesAlternatives(messages));
+
+	$effect(() => {
+		if (browser && messagesPath.at(-1)?.id) {
+			localStorage.setItem("leafId", messagesPath.at(-1)?.id as string);
+		}
+	});
+
+	run(() => {
+		page.params.id, (($isAborted = true), (loading = false));
+	});
+	let title = $derived(
+		conversations.find((conv) => conv.id === page.params.id)?.title ?? data.title
+	);
 </script>
 
 <svelte:head>
-	{#await title then title}
-		<title>{title}</title>
-	{/await}
+	<title>{title}</title>
 	<link
 		rel="stylesheet"
 		href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css"
@@ -402,15 +483,17 @@
 <ChatWindow
 	{loading}
 	{pending}
-	{messages}
+	messages={messagesPath}
+	{messagesAlternatives}
 	shared={data.shared}
 	preprompt={data.preprompt}
 	bind:files
 	on:message={onMessage}
 	on:retry={onRetry}
 	on:continue={onContinue}
+	on:showAlternateMsg={onShowAlternateMsg}
 	on:vote={(event) => voteMessage(event.detail.score, event.detail.id)}
-	on:share={() => shareConversation($page.params.id, data.title)}
+	on:share={() => shareConversation(page.params.id, data.title)}
 	on:stop={() => (($isAborted = true), (loading = false))}
 	models={data.models}
 	currentModel={findCurrentModel([...data.models, ...data.oldModels], data.model)}

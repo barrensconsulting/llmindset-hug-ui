@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import { base } from "$app/paths";
-	import { afterNavigate, goto } from "$app/navigation";
-	import { page } from "$app/stores";
+	import { afterNavigate, goto, invalidateAll } from "$app/navigation";
+	import { page } from "$app/state";
 	import { useSettingsStore } from "$lib/stores/settings";
 	import CarbonClose from "~icons/carbon/close";
 	import CarbonArrowUpRight from "~icons/carbon/ArrowUpRight";
@@ -11,14 +11,20 @@
 
 	import UserIcon from "~icons/carbon/user";
 	import type { LayoutData } from "../$types";
+	import { error } from "$lib/stores/errors";
 
-	export let data: LayoutData;
+	interface Props {
+		data: LayoutData;
+		children?: import("svelte").Snippet;
+	}
 
-	let previousPage: string = base;
-	let assistantsSection: HTMLHeadingElement;
+	let { data, children }: Props = $props();
+
+	let previousPage: string = $state(base);
+	let assistantsSection: HTMLHeadingElement | undefined = $state();
 
 	onMount(() => {
-		if ($page.params?.assistantId) {
+		if (page.params?.assistantId && assistantsSection) {
 			assistantsSection.scrollIntoView();
 		}
 	});
@@ -40,7 +46,7 @@
 		<button
 			class="btn rounded-lg"
 			aria-label="Close settings"
-			on:click={() => {
+			onclick={() => {
 				goto(previousPage);
 			}}
 		>
@@ -56,7 +62,7 @@
 			<a
 				href="{base}/settings/{model.id}"
 				class="group flex h-10 flex-none items-center gap-2 pl-3 pr-2 text-sm text-gray-500 hover:bg-gray-100 md:rounded-xl
-					{model.id === $page.params.model ? '!bg-gray-100 !text-gray-800' : ''}"
+					{model.id === page.params.model ? '!bg-gray-100 !text-gray-800' : ''}"
 			>
 				<div class="mr-auto truncate">{model.displayName}</div>
 
@@ -86,7 +92,7 @@
 				<a
 					href="{base}/settings/assistants/{assistant._id.toString()}"
 					class="group flex h-10 flex-none items-center gap-2 pl-2 pr-2 text-sm text-gray-500 hover:bg-gray-100 md:rounded-xl
-					{assistant._id.toString() === $page.params.assistantId ? '!bg-gray-100 !text-gray-800' : ''}"
+					{assistant._id.toString() === page.params.assistantId ? '!bg-gray-100 !text-gray-800' : ''}"
 				>
 					{#if assistant.avatar}
 						<img
@@ -115,7 +121,7 @@
 				<a
 					href="{base}/settings/assistants/new"
 					class="group flex h-10 flex-none items-center gap-2 pl-3 pr-2 text-sm text-gray-500 hover:bg-gray-100 md:rounded-xl
-				{$page.url.pathname === `${base}/settings/assistants/new` ? '!bg-gray-100 !text-gray-800' : ''}"
+				{page.url.pathname === `${base}/settings/assistants/new` ? '!bg-gray-100 !text-gray-800' : ''}"
 				>
 					<CarbonAdd />
 					<div class="truncate">Create new assistant</div>
@@ -129,7 +135,7 @@
 				<a
 					href="{base}/settings/assistants/{assistant._id.toString()}"
 					class="group flex h-10 flex-none items-center gap-2 pl-2 pr-2 text-sm text-gray-500 hover:bg-gray-100 md:rounded-xl
-						{assistant._id.toString() === $page.params.assistantId ? '!bg-gray-100 !text-gray-800' : ''}"
+						{assistant._id.toString() === page.params.assistantId ? '!bg-gray-100 !text-gray-800' : ''}"
 				>
 					{#if assistant.avatar}
 						<img
@@ -152,6 +158,36 @@
 							Active
 						</div>
 					{/if}
+					<button
+						type="submit"
+						aria-label="Remove assistant from your list"
+						class={[
+							"rounded-full p-1 text-xs hover:bg-gray-500 hover:bg-opacity-20",
+							assistant._id.toString() === page.params.assistantId
+								? "block"
+								: "hidden group-hover:block",
+							assistant._id.toString() !== $settings.activeModel && "ml-auto",
+						]}
+						onclick={(event) => {
+							event.stopPropagation();
+							fetch(`${base}/api/assistant/${assistant._id}/subscribe`, {
+								method: "DELETE",
+							}).then((r) => {
+								if (r.ok) {
+									if (assistant._id.toString() === page.params.assistantId) {
+										goto(`${base}/settings`, { invalidateAll: true });
+									} else {
+										invalidateAll();
+									}
+								} else {
+									console.error(r);
+									$error = r.statusText;
+								}
+							});
+						}}
+					>
+						<CarbonClose class="size-4 text-gray-500" />
+					</button>
 				</a>
 			{/each}
 			<a
@@ -162,11 +198,11 @@
 			</a>
 		{/if}
 
-		<div class="my-2 mt-auto w-full border-b border-gray-200" />
+		<div class="my-2 mt-auto w-full border-b border-gray-200"></div>
 		<a
 			href="{base}/settings"
 			class="group flex h-10 flex-none items-center gap-2 pl-3 pr-2 text-sm text-gray-500 hover:bg-gray-100 max-md:order-first md:rounded-xl
-				{$page.url.pathname === `${base}/settings` ? '!bg-gray-100 !text-gray-800' : ''}"
+				{page.url.pathname === `${base}/settings` ? '!bg-gray-100 !text-gray-800' : ''}"
 		>
 			<UserIcon class="text-sm" />
 			Application Settings
@@ -175,6 +211,6 @@
 	<div
 		class="col-span-1 w-full overflow-y-auto overflow-x-clip px-1 max-md:pt-4 md:col-span-2 md:row-span-2"
 	>
-		<slot />
+		{@render children?.()}
 	</div>
 </div>
