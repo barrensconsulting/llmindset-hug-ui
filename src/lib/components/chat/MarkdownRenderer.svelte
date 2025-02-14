@@ -177,6 +177,7 @@
 			html: (html) => escapeHTML(html),
 		},
 		gfm: true,
+		breaks: true,
 	});
 
 	DOMPurify.addHook("afterSanitizeAttributes", (node) => {
